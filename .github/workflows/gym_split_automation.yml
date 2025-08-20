@@ -20,14 +20,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install jinja2
 
-      - name: Render emails (no send)
+      - name: Send emails
         env:
-          SUBMIT_BASE_URL: https://example.com/submit
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          SUBMIT_BASE_URL: ${{ secrets.SUBMIT_BASE_URL }} # still placeholder until Phase 4
         run: |
-          python scripts/render_daily.py
-
-      - name: Upload previews
-        uses: actions/upload-artifact@v4
-        with:
-          name: email-previews
-          path: .out/**
+          python scripts/send_daily.py
