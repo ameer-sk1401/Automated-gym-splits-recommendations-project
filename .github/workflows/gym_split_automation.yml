@@ -1,0 +1,33 @@
+name: GYM Split recommendation workflow
+on:
+  schedule:
+    - cron: "0 9 * * *" # Runs every day at 9 AM UTC
+  workflow_dispatch:
+jobs:
+  gym_split_reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install jinja2
+
+      - name: Render emails (no send)
+        env:
+          SUBMIT_BASE_URL: https://example.com/submit
+        run: |
+          python scripts/render_daily.py
+
+      - name: Upload previews
+        uses: actions/upload-artifact@v4
+        with:
+          name: email-previews
+          path: .out/**
