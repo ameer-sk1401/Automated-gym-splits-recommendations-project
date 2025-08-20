@@ -30,4 +30,4 @@ jobs:
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           SUBMIT_BASE_URL: ${{ secrets.SUBMIT_BASE_URL }} # still placeholder until Phase 4
         run: |
-          python scripts/send_daily.py
+          python scripts.send_daily.py
