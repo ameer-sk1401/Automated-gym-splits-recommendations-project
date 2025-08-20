@@ -1,0 +1,8 @@
+{
+  "title": "Push Day",
+  "exercises": [
+    { "id": "bench_press", "name": "Bench Press", "sets": 4, "reps": "6-8" },
+    { "id": "ohp", "name": "Overhead Press", "sets": 3, "reps": "8-10" },
+    { "id": "dips", "name": "Dips", "sets": 3, "reps": "AMRAP" }
+  ]
+}
