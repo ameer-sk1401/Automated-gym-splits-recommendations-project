@@ -6,6 +6,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from jinja2 import Template
 from urllib.parse import urlencode
+import time
+from urllib.parse import urlencode
+from scripts.lib.signing import sign_params
 
 # --- local imports ---
 from scripts.lib.utils import BASE, load_json, today_local_iso, weekday_name
@@ -14,18 +17,23 @@ from scripts.lib.templates import load_email_template
 CONFIG = BASE / "config"
 SPLITS = BASE / "splits"
 
-# ---- ENV (set these in GitHub Actions / local env) ----
-SMTP_HOST      = os.environ.get("SMTP_HOST", "")
-SMTP_PORT      = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USERNAME  = os.environ.get("SMTP_USERNAME", "")
-SMTP_PASSWORD  = os.environ.get("SMTP_PASSWORD", "")
-FROM_EMAIL     = os.environ.get("FROM_EMAIL", "")
-SUBMIT_BASE_URL= os.environ.get("SUBMIT_BASE_URL", "https://example.com/submit")
+# ---- ENV ----
+SMTP_HOST       = os.environ.get("SMTP_HOST", "").strip()
+SMTP_PORT       = int(str(os.environ.get("SMTP_PORT", "587")).strip())
+SMTP_USERNAME   = os.environ.get("SMTP_USERNAME", "").strip()
+SMTP_PASSWORD   = os.environ.get("SMTP_PASSWORD", "").strip()
+FROM_EMAIL      = os.environ.get("FROM_EMAIL", "").strip()
+SUBMIT_BASE_URL = os.environ.get("SUBMIT_BASE_URL", "https://example.com/submit").strip()
+SIGNING_SECRET  = os.environ.get("SIGNING_SECRET", "").strip()
 
 # ---- Helpers ----
 def build_link(base: str, params: dict) -> str:
-    # Phase 2.5: still naive querystrings (we’ll HMAC‑sign in Phase 3)
-    return f"{base}?{urlencode(params)}"
+    # Add timestamp and signature
+    if "ts" not in params:
+        params = {**params, "ts": int(time.time())}
+    token = sign_params(params, SIGNING_SECRET)
+    q = {**params, "t": token}
+    return f"{base}?{urlencode(q)}"
 
 def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
     tmpl = Template(load_email_template())
@@ -86,7 +94,7 @@ def smtp_send(msg: MIMEMultipart, to_addr: str, retries: int = 3, backoff: float
 
 def main():
     # Sanity checks
-    required = ["SMTP_HOST", "SMTP_PORT", "FROM_EMAIL"]
+    required = ["SMTP_HOST", "SMTP_PORT", "FROM_EMAIL", "SIGNING_SECRET"]
     missing = [k for k in required if not globals()[k]]
     if missing:
         raise SystemExit(f"Missing required env vars: {', '.join(missing)}")
