@@ -23,11 +23,12 @@ jobs:
 
       - name: Send emails
         env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-          SUBMIT_BASE_URL: ${{ secrets.SUBMIT_BASE_URL }} # still placeholder until Phase 4
+          SMTP_HOST:       ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:       ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
+          FROM_EMAIL:      ${{ secrets.FROM_EMAIL }}
+          SUBMIT_BASE_URL: ${{ secrets.SUBMIT_BASE_URL }}
+          SIGNING_SECRET:  ${{ secrets.SIGNING_SECRET }}
         run: |
           python -m scripts.send_daily
