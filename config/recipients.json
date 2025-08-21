@@ -1,4 +1,9 @@
 [
   { "id": "u1", "name": "Ameer", "email": "ashaik@binghamton.edu" },
+<<<<<<< HEAD
   { "id": "u2", "name": "Charan", "email": "sburugu@binghamton.edu" }
+=======
+  { "id": "u2", "name": "Charan", "email": "sburugu@binghaton.edu" },
+  { "id": "u3", "name": "Chippu", "email": "lchippada@binghamton.edu" }
+>>>>>>> e3cce57 (Added manohar in recipients)
 ]
