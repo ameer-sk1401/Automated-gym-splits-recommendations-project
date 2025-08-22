@@ -1,0 +1,10 @@
+# netlify.toml
+[functions]
+  node_bundler = "esbuild"   # modern bundling
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/submit"
+  to = "/.netlify/functions/submit"
+  status = 200
+  force = true
