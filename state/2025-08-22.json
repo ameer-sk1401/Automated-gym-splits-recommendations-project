@@ -3,13 +3,15 @@
   "completions": {
     "u1": {
       "deadlift": true,
-      "barbell_row": true
+      "barbell_row": true,
+      "pullups": true
     }
   },
   "timestamps": {
     "u1": {
       "deadlift": "2025-08-23T01:26:09.365Z",
-      "barbell_row": "2025-08-23T01:26:26.881Z"
+      "barbell_row": "2025-08-23T01:26:26.881Z",
+      "pullups": "2025-08-23T01:26:31.672Z"
     }
   }
 }
