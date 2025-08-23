@@ -2,12 +2,14 @@
   "date": "2025-08-22",
   "completions": {
     "u1": {
-      "deadlift": true
+      "deadlift": true,
+      "barbell_row": true
     }
   },
   "timestamps": {
     "u1": {
-      "deadlift": "2025-08-23T01:26:09.365Z"
+      "deadlift": "2025-08-23T01:26:09.365Z",
+      "barbell_row": "2025-08-23T01:26:26.881Z"
     }
   }
 }
