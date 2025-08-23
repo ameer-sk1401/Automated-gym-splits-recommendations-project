@@ -2,9 +2,11 @@
   "date": "2025-08-23",
   "user": "Manohar",
   "completed": [
-    "squat"
+    "squat",
+    "ALL"
   ],
   "timestamps": {
-    "squat": "2025-08-23T05:18:59.623Z"
+    "squat": "2025-08-23T05:18:59.623Z",
+    "ALL": "2025-08-23T05:19:08.822Z"
   }
 }
