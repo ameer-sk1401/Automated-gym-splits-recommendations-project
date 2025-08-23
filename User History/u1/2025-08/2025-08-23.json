@@ -2,9 +2,11 @@
   "date": "2025-08-23",
   "user": "u1",
   "completed": [
-    "lunges"
+    "lunges",
+    "ALL"
   ],
   "timestamps": {
-    "lunges": "2025-08-23T04:37:34.420Z"
+    "lunges": "2025-08-23T04:37:34.420Z",
+    "ALL": "2025-08-23T04:37:42.875Z"
   }
 }
