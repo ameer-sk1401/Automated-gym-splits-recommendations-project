@@ -25,6 +25,7 @@ SMTP_PASSWORD   = os.environ.get("SMTP_PASSWORD", "").strip()
 FROM_EMAIL      = os.environ.get("FROM_EMAIL", "").strip()
 SUBMIT_BASE_URL = os.environ.get("SUBMIT_BASE_URL", "https://example.com/submit").strip()
 SIGNING_SECRET  = os.environ.get("SIGNING_SECRET", "").strip()
+NETLIFY_BASE = os.environ.get("NETLIFY_BASE", "").strip()
 
 # ---- Helpers ----
 def build_link(base: str, params: dict) -> str:
@@ -37,6 +38,7 @@ def build_link(base: str, params: dict) -> str:
 
 def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
     tmpl = Template(load_email_template())
+
     items = []
     for ex in split["exercises"]:
         params = {"u": recipient["id"], "d": date_str, "ex": ex["id"]}
@@ -46,14 +48,21 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
             "reps": ex.get("reps"),
             "link": build_link(SUBMIT_BASE_URL, params),
         })
-    complete_all_link = build_link(SUBMIT_BASE_URL, {"u": recipient["id"], "d": date_str, "ex": "ALL"})
+
+    complete_all_link = build_link(
+        SUBMIT_BASE_URL, {"u": recipient["id"], "d": date_str, "ex": "ALL"}
+    )
+
+    user = recipient.get("username") or recipient["id"]
+    my_activity_link = f"{NETLIFY_BASE}/activity?u={user}" if NETLIFY_BASE else ""
 
     return tmpl.render(
         name=recipient.get("name", recipient["id"]),
         title=split.get("title", "Today's Workout"),
         date=date_str,
         items=items,
-        complete_all_link=complete_all_link
+        complete_all_link=complete_all_link,   # <-- missing comma fixed
+        my_activity_link=my_activity_link,     # <-- now actually passed in
     )
 
 def build_message(from_email: str, to_email: str, subject: str, html_body: str) -> MIMEMultipart:
