@@ -7,6 +7,9 @@
     },
     "Ameer": {
       "ALL": true
+    },
+    "Manohar": {
+      "squat": true
     }
   },
   "timestamps": {
@@ -16,6 +19,9 @@
     },
     "Ameer": {
       "ALL": "2025-08-23T05:17:52.771Z"
+    },
+    "Manohar": {
+      "squat": "2025-08-23T05:18:59.623Z"
     }
   }
 }
