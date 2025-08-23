@@ -9,61 +9,67 @@
         padding: 0;
         box-sizing: border-box;
       }
-      
+
       body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-        background: linear-gradient(135deg, #8B2F97 0%, #6B1B7F 50%, #4A1458 100%);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Arial, sans-serif;
+        /* Updated to darker background for dark theme */
+        background: linear-gradient(
+          135deg,
+          #1a1a1a 0%,
+          #2d2d2d 50%,
+          #1a1a1a 100%
+        );
         min-height: 100vh;
         padding: 20px;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      
+
       .container {
         width: 100%;
         max-width: 600px;
       }
-      
+
       .card {
-        background: rgba(255, 255, 255, 0.95);
+        /* Changed to dark card background with subtle transparency */
+        background: rgba(45, 45, 45, 0.95);
         backdrop-filter: blur(10px);
         border-radius: 20px;
         padding: 32px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
       }
-      
+
       .header {
         text-align: center;
         margin-bottom: 32px;
       }
-      
+
       .title {
         font-size: 28px;
         font-weight: 800;
-        color: #4A1458;
+        /* Updated title color for dark theme */
+        color: #ffffff;
         margin-bottom: 8px;
         text-transform: uppercase;
         letter-spacing: 1px;
       }
-      
+
       .meta {
-        color: #6B1B7F;
+        /* Updated meta text color for better contrast */
+        color: #cccccc;
         font-size: 16px;
         font-weight: 500;
-        background: linear-gradient(135deg, #FFD700, #FFA500);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
       }
-      
+
       .workout-list {
         margin-bottom: 24px;
       }
-      
+
       .item {
-        background: linear-gradient(135deg, #8B2F97, #6B1B7F);
+        background: linear-gradient(135deg, #8b2f97, #6b1b7f);
         color: white;
         padding: 20px;
         border-radius: 16px;
@@ -74,32 +80,33 @@
         position: relative;
         overflow: hidden;
       }
-      
+
       .item::before {
-        content: '';
+        content: "";
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         height: 3px;
-        background: linear-gradient(90deg, #FFD700, #FFA500);
+        background: linear-gradient(90deg, #ffd700, #ffa500);
       }
-      
+
       .item:hover {
         transform: translateY(-2px);
         box-shadow: 0 12px 24px rgba(139, 47, 151, 0.4);
-        border-color: #FFD700;
+        border-color: #ffd700;
       }
-      
+
       .name {
         font-weight: 700;
         font-size: 18px;
         margin-bottom: 8px;
-        color: #FFD700;
+        /* Changed exercise name color to muted green/brown to match screenshot */
+        color: #8b7355;
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
-      
+
       .exercise-details {
         display: flex;
         gap: 24px;
@@ -107,25 +114,26 @@
         font-size: 14px;
         color: rgba(255, 255, 255, 0.9);
       }
-      
+
       .detail-item {
         display: flex;
         align-items: center;
         gap: 6px;
       }
-      
+
       .detail-label {
         font-weight: 600;
-        color: #FFD700;
+        /* Updated detail label color to match the muted theme */
+        color: #8b7355;
       }
-      
+
       .btn {
         display: inline-block;
         padding: 12px 24px;
         border-radius: 25px;
         text-decoration: none;
-        background: linear-gradient(135deg, #FFD700, #FFA500);
-        color: #4A1458;
+        background: linear-gradient(135deg, #ffd700, #ffa500);
+        color: #4a1458;
         font-weight: 700;
         font-size: 14px;
         text-transform: uppercase;
@@ -135,54 +143,55 @@
         border: none;
         cursor: pointer;
       }
-      
+
       .btn:hover {
         transform: translateY(-1px);
         box-shadow: 0 6px 16px rgba(255, 215, 0, 0.4);
-        background: linear-gradient(135deg, #FFA500, #FFD700);
+        background: linear-gradient(135deg, #ffa500, #ffd700);
       }
-      
+
       .complete-all {
         text-align: center;
         margin-bottom: 24px;
       }
-      
+
       .btn-large {
         padding: 16px 32px;
         font-size: 16px;
         border-radius: 30px;
       }
-      
+
       .tip {
         text-align: center;
-        color: #6B1B7F;
+        /* Updated tip text color for dark theme */
+        color: #cccccc;
         font-size: 12px;
         font-style: italic;
         background: rgba(255, 215, 0, 0.1);
         padding: 12px;
         border-radius: 8px;
-        border-left: 4px solid #FFD700;
+        border-left: 4px solid #ffd700;
       }
-      
+
       .planet-accent {
         display: inline-block;
         width: 8px;
         height: 8px;
-        background: #FFD700;
+        background: #ffd700;
         border-radius: 50%;
         margin: 0 8px;
       }
-      
+
       @media (max-width: 640px) {
         .card {
           padding: 24px;
           margin: 10px;
         }
-        
+
         .title {
           font-size: 24px;
         }
-        
+
         .exercise-details {
           flex-direction: column;
           gap: 8px;
@@ -222,11 +231,20 @@
         </div>
 
         <div class="complete-all">
-          <a class="btn btn-large" href="{{ complete_all_link }}">🎯 Complete All Exercises</a>
+          <a class="btn btn-large" href="{{ complete_all_link }}"
+            >🎯 Complete All Exercises</a
+          >
+        </div>
+
+        <div class="complete-all">
+          <a class="btn btn-large" href="{{ my_activity_link }}"
+            >📊 My Activity</a
+          >
         </div>
 
         <div class="tip">
-          💡 Tip: These links are unique to you for today. Stay consistent and achieve your fitness goals!
+          💡 Tip: These links are unique to you for today. Stay consistent and
+          achieve your fitness goals!
         </div>
       </div>
     </div>
