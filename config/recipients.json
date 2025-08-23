@@ -1,1 +1,18 @@
-[{ "id": "u1", "name": "Ameer", "email": "ashaik@binghamton.edu" }]
+[
+  { "id": "Ameer", "name": "Ameer Shaik", "email": "ashaik@binghamton.edu" },
+  {
+    "id": "Charan",
+    "name": "Sri Charan Burugu",
+    "email": "sburugu@binghamton.edu"
+  },
+  {
+    "id": "Manohar",
+    "name": "Manohar chippada",
+    "email": "lchippada@binghamton.edu"
+  },
+  {
+    "id": "Pradeep",
+    "name": "Pradeep Chand",
+    "email": "pradeepchandus2023@gmail.com"
+  }
+]
