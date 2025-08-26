@@ -45,6 +45,7 @@
       .header {
         text-align: center;
         margin-bottom: 32px;
+        position: relative;
       }
 
       .title {
@@ -161,25 +162,54 @@
         border-radius: 30px;
       }
 
-      .tip {
-        text-align: center;
-        /* Updated tip text color for dark theme */
-        color: #cccccc;
-        font-size: 12px;
-        font-style: italic;
-        background: rgba(255, 215, 0, 0.1);
-        padding: 12px;
-        border-radius: 8px;
-        border-left: 4px solid #ffd700;
+      /* Added styles for medium buttons and button row layout */
+      .btn-medium {
+        padding: 14px 28px;
+        font-size: 15px;
+        border-radius: 25px;
       }
 
-      .planet-accent {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        background: #ffd700;
-        border-radius: 50%;
-        margin: 0 8px;
+      .btn-secondary {
+        background: linear-gradient(135deg, #666666, #888888);
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 102, 102, 0.3);
+      }
+
+      .btn-secondary:hover {
+        background: linear-gradient(135deg, #888888, #666666);
+        box-shadow: 0 6px 16px rgba(102, 102, 102, 0.4);
+      }
+
+      .button-row {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        margin-bottom: 24px;
+      }
+
+      .btn-top-right {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 10px 20px;
+        font-size: 13px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #ffd700, #ffa500);
+        color: #4a1458;
+        font-weight: 600;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 10px rgba(255, 215, 0, 0.3);
+        border: none;
+        cursor: pointer;
+      }
+
+      .btn-top-right:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 14px rgba(255, 215, 0, 0.4);
+        background: linear-gradient(135deg, #ffa500, #ffd700);
       }
 
       @media (max-width: 640px) {
@@ -196,6 +226,22 @@
           flex-direction: column;
           gap: 8px;
         }
+
+        /* Added responsive layout for button row */
+        .button-row {
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .btn-top-right {
+          position: static;
+          margin-bottom: 16px;
+          display: inline-block;
+        }
+
+        .header {
+          text-align: center;
+        }
       }
     </style>
   </head>
@@ -203,6 +249,10 @@
     <div class="container">
       <div class="card">
         <div class="header">
+          <!-- Added customized session button in top right -->
+          <a class="btn-top-right" href="{{ customized_session_link }}"
+            >⚙️ Customized Session</a
+          >
           <h1 class="title">{{ title }}</h1>
           <p class="meta">
             Hi {{ name }}, here's your plan for <strong>{{ date }}</strong>
@@ -236,9 +286,13 @@
           >
         </div>
 
-        <div class="complete-all">
-          <a class="btn btn-large" href="{{ my_activity_link }}"
+        <!-- Added flex container for side-by-side buttons -->
+        <div class="button-row">
+          <a class="btn btn-medium" href="{{ my_activity_link }}"
             >📊 My Activity</a
+          >
+          <a class="btn btn-medium btn-secondary" href="{{ skip_today_link }}"
+            >⏭️ Skip for today</a
           >
         </div>
 
