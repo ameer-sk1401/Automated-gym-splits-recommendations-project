@@ -1,131 +1,242 @@
 #!/usr/bin/env python3
-from __future__ import annotations
+# scripts/send_daily.py
+
+import os
+import json
+import time
+import hmac
+import base64
+import hashlib
+import smtplib
 from pathlib import Path
-import os, json, time, smtplib, ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from jinja2 import Template
-from urllib.parse import urlencode
-import time
-from urllib.parse import urlencode
-from scripts.lib.signing import sign_params
+from datetime import date, timedelta
 
-# --- local imports ---
-from scripts.lib.utils import BASE, load_json, today_local_iso, weekday_name
+# ----- project libs (as used earlier in your repo) -----
+from scripts.lib.utils import BASE, load_json, today_local_iso, build_link
 from scripts.lib.templates import load_email_template
 
-CONFIG = BASE / "config"
-SPLITS = BASE / "splits"
-
-# ---- ENV ----
-SMTP_HOST       = os.environ.get("SMTP_HOST", "").strip()
-SMTP_PORT       = int(str(os.environ.get("SMTP_PORT", "587")).strip())
-SMTP_USERNAME   = os.environ.get("SMTP_USERNAME", "").strip()
-SMTP_PASSWORD   = os.environ.get("SMTP_PASSWORD", "").strip()
-FROM_EMAIL      = os.environ.get("FROM_EMAIL", "").strip()
-SUBMIT_BASE_URL = os.environ.get("SUBMIT_BASE_URL", "https://example.com/submit").strip()
+# ---------- ENV ----------
+SUBMIT_BASE_URL = os.environ.get("SUBMIT_BASE_URL", "").strip()    # e.g. https://gym-data-submission.netlify.app/submit
+NETLIFY_BASE    = os.environ.get("NETLIFY_BASE", "").strip()       # e.g. https://gym-data-submission.netlify.app
 SIGNING_SECRET  = os.environ.get("SIGNING_SECRET", "").strip()
-NETLIFY_BASE = os.environ.get("NETLIFY_BASE", "").strip()
 
-# ---- Helpers ----
-def build_link(base: str, params: dict) -> str:
-    # Add timestamp and signature
-    if "ts" not in params:
-        params = {**params, "ts": int(time.time())}
-    token = sign_params(params, SIGNING_SECRET)
-    q = {**params, "t": token}
-    return f"{base}?{urlencode(q)}"
+SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+FROM_EMAIL    = os.environ.get("FROM_EMAIL", SMTP_USERNAME)
+
+# ---------- PATHS ----------
+CONFIG         = BASE / "config"
+RECIPIENTS_FN  = CONFIG / "recipients.json"
+SPLITS_DIR     = BASE / "splits"                 # default rotation split JSONs (e.g., push-day.json, pull-day.json, leg-day.json)
+WORKOUT_SPLITS = BASE / "workout_splits"         # per-user plans -> workout_splits/<username>/plan.json
+SCHEDULES_DIR  = BASE / "schedules"              # per-user rotation state -> schedules/<username>.json
+OUT_DIR        = BASE / ".out"                   # for local previews if you want
+
+# Fallback default rotation titles (must map to files in SPLITS_DIR via slug)
+DEFAULT_ROTATION = ["Push day", "Pull day", "Leg day"]
+
+
+# ========= helpers =========
+
+def slug(s: str) -> str:
+    return "".join([c.lower() if c.isalnum() else "-" for c in s]).strip("-").replace("--", "-")
+
+def weekday_name_iso(d: str) -> str:
+    y, m, dd = map(int, d.split("-"))
+    return date(y, m, dd).strftime("%A")
+
+def load_user_plan(username: str):
+    p = WORKOUT_SPLITS / username / "plan.json"
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
+    return None
+
+def load_split_by_title(title: str) -> dict:
+    """
+    Reads a split JSON by human title.
+    Expect files like splits/push-day.json, splits/pull-day.json, splits/leg-day.json
+    with schema:
+      { "title": "Push day", "exercises": [ {"id":"bench_press","name":"Bench Press","sets":3,"reps":"8-10"}, ... ] }
+    """
+    fn = SPLITS_DIR / f"{slug(title)}.json"
+    if not fn.exists():
+        raise FileNotFoundError(f"Missing split file: {fn}")
+    return json.loads(fn.read_text(encoding="utf-8"))
+
+def load_sched(username: str) -> dict:
+    SCHEDULES_DIR.mkdir(parents=True, exist_ok=True)
+    p = SCHEDULES_DIR / f"{username}.json"
+    if p.exists():
+        return json.loads(p.read_text(encoding="utf-8"))
+    return {"current_index": 0, "last_action_date": None, "last_action": "NONE"}
+
+def save_sched(username: str, sched: dict):
+    SCHEDULES_DIR.mkdir(parents=True, exist_ok=True)
+    p = SCHEDULES_DIR / f"{username}.json"
+    p.write_text(json.dumps(sched, indent=2), encoding="utf-8")
+
+def pick_today_index(username: str, today: str, total: int) -> int:
+    """
+    Rotation rule:
+      - If last_action == "SKIPPED" and last_action_date is yesterday or today -> DO NOT advance (freeze)
+      - Else (COMPLETED or NONE) -> ADVANCE by 1 (wrap)
+    Set today's baseline to "NONE" (submit endpoint will update it after clicks).
+    """
+    sched = load_sched(username)
+    idx = int(sched.get("current_index", 0)) % max(1, total)
+    last_action = sched.get("last_action", "NONE")
+    last_date   = sched.get("last_action_date")
+
+    yd = (date.fromisoformat(today) - timedelta(days=1)).isoformat()
+    freeze = (last_action == "SKIPPED") and (last_date is not None) and (last_date >= yd)
+
+    if not freeze:
+        idx = (idx + 1) % max(1, total)
+
+    # baseline for today; submit function will flip action
+    sched.update({"current_index": idx, "last_action": "NONE", "last_action_date": today})
+    save_sched(username, sched)
+    return idx
+
+def sign_params_simple(params: dict) -> str:
+    """
+    Sign with the same URL-safe base64 HMAC-SHA256 as submit/customize functions.
+    Only used here for the /customize link (we sign u+ts).
+    """
+    if not SIGNING_SECRET:
+        raise RuntimeError("SIGNING_SECRET not set")
+    keys = sorted(params.keys())
+    canonical = "&".join([f"{k}={quote_plus(params[k])}" for k in keys])
+    mac = hmac.new(SIGNING_SECRET.encode("utf-8"), canonical.encode("utf-8"), hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(mac).decode("ascii").rstrip("=")
+
+def quote_plus(s: str) -> str:
+    # minimal encoder consistent with earlier usage
+    from urllib.parse import quote_plus as qp
+    return qp(str(s), safe="")
+
+def build_signed_url(base: str, params: dict) -> str:
+    """Builds a URL with t=signature appended."""
+    p = dict(params)
+    p["t"] = sign_params_simple(params)
+    qs = "&".join([f"{k}={quote_plus(v)}" for k, v in p.items()])
+    return f"{base}?{qs}"
 
 def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
     tmpl = Template(load_email_template())
 
+    user = recipient.get("username") or recipient["id"]
+
+    # Per-exercise links
     items = []
     for ex in split["exercises"]:
-        params = {"u": recipient["id"], "d": date_str, "ex": ex["id"]}
+        params = {"u": user, "d": date_str, "ex": ex["id"], "ts": str(int(time.time()))}
         items.append({
             "name": ex["name"],
             "sets": ex.get("sets"),
             "reps": ex.get("reps"),
-            "link": build_link(SUBMIT_BASE_URL, params),
+            "link": build_link(SUBMIT_BASE_URL, params),   # uses existing signed build_link from your utils
         })
 
-    complete_all_link = build_link(
-        SUBMIT_BASE_URL, {"u": recipient["id"], "d": date_str, "ex": "ALL"}
+    # Complete ALL link
+    complete_all_link = build_link(SUBMIT_BASE_URL, {"u": user, "d": date_str, "ex": "ALL", "ts": str(int(time.time()))})
+
+    # Activity link (no signature required)
+    my_activity_link = f"{NETLIFY_BASE}/activity?u={quote_plus(user)}" if NETLIFY_BASE else ""
+
+    # Skip link (signed)
+    skip_today_link = build_link(SUBMIT_BASE_URL, {"u": user, "d": date_str, "ex": "SKIP", "ts": str(int(time.time()))})
+
+    # Customized Session link (signed with u+ts)
+    customized_session_link = (
+        build_signed_url(f"{NETLIFY_BASE}/customize", {"u": user, "ts": str(int(time.time()))})
+        if NETLIFY_BASE else ""
     )
 
-    user = recipient.get("username") or recipient["id"]
-    my_activity_link = f"{NETLIFY_BASE}/activity?u={user}" if NETLIFY_BASE else ""
-
     return tmpl.render(
-        name=recipient.get("name", recipient["id"]),
+        name=recipient.get("name", user),
         title=split.get("title", "Today's Workout"),
         date=date_str,
         items=items,
-        complete_all_link=complete_all_link,   # <-- missing comma fixed
-        my_activity_link=my_activity_link,     # <-- now actually passed in
+        complete_all_link=complete_all_link,
+        my_activity_link=my_activity_link,
+        skip_today_link=skip_today_link,
+        customized_session_link=customized_session_link,
     )
 
-def build_message(from_email: str, to_email: str, subject: str, html_body: str) -> MIMEMultipart:
-    # Provide a minimal plain‑text alternative for deliverability
-    text_fallback = "Open this email in an HTML-capable client to view your workout and completion links."
+def pick_plan_and_split_for_today(username: str, today: str) -> dict:
+    """
+    Returns the split dict for today, preferring user plan.
+    - If workout_splits/<username>/plan.json exists, use that plan's days.
+    - Else use DEFAULT_ROTATION and load JSON files from SPLITS_DIR.
+    """
+    user_plan = load_user_plan(username)
+    if user_plan and isinstance(user_plan.get("days"), list) and user_plan["days"]:
+        idx = pick_today_index(username, today, total=len(user_plan["days"]))
+        day = user_plan["days"][idx]
+        # Ensure expected schema for renderer
+        return {"title": day.get("title", f"Day {idx+1}"), "exercises": day.get("exercises", [])}
+
+    # fallback to defaults
+    idx = pick_today_index(username, today, total=len(DEFAULT_ROTATION))
+    title = DEFAULT_ROTATION[idx]
+    return load_split_by_title(title)
+
+def build_message_html(recipient: dict, split: dict, date_str: str) -> MIMEMultipart:
+    html = render_email_html(recipient, split, date_str)
 
     msg = MIMEMultipart("alternative")
-    msg["From"] = from_email
-    msg["To"] = to_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(text_fallback, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    msg["Subject"] = f"{split.get('title', 'Today')} — {date_str}"
+    msg["From"] = FROM_EMAIL
+    msg["To"] = recipient["email"]
+    msg.attach(MIMEText(html, "html", "utf-8"))
     return msg
 
-def smtp_send(msg: MIMEMultipart, to_addr: str, retries: int = 3, backoff: float = 1.5):
-    attempt = 0
+def smtp_send(msg: MIMEMultipart, to_addr: str):
     last_err = None
-    while attempt < retries:
+    for attempt in range(2):
         try:
-            context = ssl.create_default_context()
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=20) as server:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=25) as server:
                 server.ehlo()
-                # Use STARTTLS on ports like 587; skip for 465 (implicit TLS)
-                if SMTP_PORT != 465:
-                    server.starttls(context=context)
-                    server.ehlo()
-                if SMTP_USERNAME:
+                if SMTP_PORT == 587:
+                    server.starttls()
+                if SMTP_USERNAME and SMTP_PASSWORD:
                     server.login(SMTP_USERNAME, SMTP_PASSWORD)
                 server.sendmail(msg["From"], [to_addr], msg.as_string())
             return
         except Exception as e:
             last_err = e
-            attempt += 1
-            if attempt < retries:
-                time.sleep(backoff ** attempt)
-    # If we got here, all retries failed
+            time.sleep(1.5)
     raise RuntimeError(f"Failed to send to {to_addr}: {last_err}")
 
+# ========= main =========
+
 def main():
-    # Sanity checks
-    required = ["SMTP_HOST", "SMTP_PORT", "FROM_EMAIL", "SIGNING_SECRET"]
-    missing = [k for k in required if not globals()[k]]
-    if missing:
-        raise SystemExit(f"Missing required env vars: {', '.join(missing)}")
+    if not SUBMIT_BASE_URL:
+        raise SystemExit("SUBMIT_BASE_URL is not set")
+    if not NETLIFY_BASE:
+        print("[warn] NETLIFY_BASE is empty; 'My Activity' and 'Customized Session' links will be blank.")
 
-    recipients = load_json(CONFIG / "recipients.json")
-    schedule   = load_json(CONFIG / "schedule.json")
-
-    day = weekday_name()
+    recipients = load_json(RECIPIENTS_FN)
     date_str = today_local_iso()
-    split_file = schedule.get(day) or schedule.get(day.lower())
-    if not split_file:
-        print(f"No split configured for {day}; nothing to send.")
-        return
-    split = load_json(SPLITS / split_file)
 
     for r in recipients:
-        html = render_email_html(r, split, date_str)
-        subject = f"[Gym Split] {split.get('title','Workout')} – {date_str}"
-        msg = build_message(FROM_EMAIL, r["email"], subject, html)
+        user = r.get("username") or r["id"]
+        split = pick_plan_and_split_for_today(user, date_str)
+
+        msg = build_message_html(r, split, date_str)
         print(f"→ Sending to {r['email']} ...")
         smtp_send(msg, r["email"])
-    print("✅ All emails sent.")
+
+        # Optional: write preview copy
+        OUT_DIR.mkdir(exist_ok=True, parents=True)
+        preview_fn = OUT_DIR / f"{user}-{date_str}.html"
+        preview_fn.write_text(msg.as_string(), encoding="utf-8")
 
 if __name__ == "__main__":
     main()
