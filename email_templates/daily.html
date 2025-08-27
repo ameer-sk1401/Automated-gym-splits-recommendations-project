@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Create Workout Split - Planet Fitness Style</title>
+    <title>Daily Gym Split - Planet Fitness Style</title>
     <style>
       * {
         margin: 0;
@@ -13,6 +13,7 @@
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
           Arial, sans-serif;
+        /* Updated to darker background for dark theme */
         background: linear-gradient(
           135deg,
           #1a1a1a 0%,
@@ -28,10 +29,11 @@
 
       .container {
         width: 100%;
-        max-width: 700px;
+        max-width: 600px;
       }
 
       .card {
+        /* Changed to dark card background with subtle transparency */
         background: rgba(45, 45, 45, 0.95);
         backdrop-filter: blur(10px);
         border-radius: 20px;
@@ -49,30 +51,38 @@
       .title {
         font-size: 28px;
         font-weight: 800;
+        /* Updated title color for dark theme */
         color: #ffffff;
         margin-bottom: 8px;
         text-transform: uppercase;
         letter-spacing: 1px;
       }
 
-      .subtitle {
+      .meta {
+        /* Updated meta text color for better contrast */
         color: #cccccc;
         font-size: 16px;
         font-weight: 500;
       }
 
-      /* Added form styling for workout split creation */
-      .form-section {
-        margin-bottom: 32px;
-        padding: 24px;
+      .workout-list {
+        margin-bottom: 24px;
+      }
+
+      .item {
         background: linear-gradient(135deg, #8b2f97, #6b1b7f);
+        color: white;
+        padding: 20px;
         border-radius: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 8px 16px rgba(139, 47, 151, 0.3);
         border: 2px solid rgba(255, 215, 0, 0.3);
+        transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
       }
 
-      .form-section::before {
+      .item::before {
         content: "";
         position: absolute;
         top: 0;
@@ -82,55 +92,40 @@
         background: linear-gradient(90deg, #ffd700, #ffa500);
       }
 
-      .form-group {
-        margin-bottom: 20px;
+      .item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(139, 47, 151, 0.4);
+        border-color: #ffd700;
       }
 
-      .form-label {
-        display: block;
-        color: #8b7355;
+      .name {
         font-weight: 700;
-        font-size: 14px;
+        font-size: 18px;
+        margin-bottom: 8px;
+        /* Changed exercise name color to muted green/brown to match screenshot */
+        color: #8b7355;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 8px;
       }
 
-      .form-input {
-        width: 100%;
-        padding: 12px 16px;
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-        font-size: 16px;
-        transition: all 0.3s ease;
+      .exercise-details {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
       }
 
-      .form-input:focus {
-        outline: none;
-        border-color: #ffd700;
-        background: rgba(255, 255, 255, 0.15);
-        box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.2);
+      .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
 
-      .form-input::placeholder {
-        color: rgba(255, 255, 255, 0.6);
-      }
-
-      .exercise-entry {
-        background: rgba(0, 0, 0, 0.3);
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-
-      .exercise-row {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr auto;
-        gap: 12px;
-        align-items: end;
+      .detail-label {
+        font-weight: 600;
+        /* Updated detail label color to match the muted theme */
+        color: #8b7355;
       }
 
       .btn {
@@ -156,21 +151,22 @@
         background: linear-gradient(135deg, #ffa500, #ffd700);
       }
 
-      .btn-small {
-        padding: 8px 16px;
-        font-size: 12px;
-        border-radius: 20px;
+      .complete-all {
+        text-align: center;
+        margin-bottom: 24px;
       }
 
-      .btn-danger {
-        background: linear-gradient(135deg, #dc3545, #c82333);
-        color: white;
-        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+      .btn-large {
+        padding: 16px 32px;
+        font-size: 16px;
+        border-radius: 30px;
       }
 
-      .btn-danger:hover {
-        background: linear-gradient(135deg, #c82333, #dc3545);
-        box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+      /* Added styles for medium buttons and button row layout */
+      .btn-medium {
+        padding: 14px 28px;
+        font-size: 15px;
+        border-radius: 25px;
       }
 
       .btn-secondary {
@@ -184,25 +180,36 @@
         box-shadow: 0 6px 16px rgba(102, 102, 102, 0.4);
       }
 
-      .day-header {
-        color: white;
-        font-size: 20px;
-        font-weight: 700;
-        margin-bottom: 16px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-      }
-
-      .add-exercise-btn {
-        width: 100%;
-        margin-top: 12px;
-      }
-
-      .form-actions {
+      .button-row {
         display: flex;
         gap: 16px;
         justify-content: center;
-        margin-top: 32px;
+        margin-bottom: 24px;
+      }
+
+      .btn-top-right {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 10px 20px;
+        font-size: 13px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #ffd700, #ffa500);
+        color: #4a1458;
+        font-weight: 600;
+        text-decoration: none;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 10px rgba(255, 215, 0, 0.3);
+        border: none;
+        cursor: pointer;
+      }
+
+      .btn-top-right:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 14px rgba(255, 215, 0, 0.4);
+        background: linear-gradient(135deg, #ffa500, #ffd700);
       }
 
       @media (max-width: 640px) {
@@ -215,13 +222,25 @@
           font-size: 24px;
         }
 
-        .exercise-row {
-          grid-template-columns: 1fr;
+        .exercise-details {
+          flex-direction: column;
           gap: 8px;
         }
 
-        .form-actions {
+        /* Added responsive layout for button row */
+        .button-row {
           flex-direction: column;
+          gap: 12px;
+        }
+
+        .btn-top-right {
+          position: static;
+          margin-bottom: 16px;
+          display: inline-block;
+        }
+
+        .header {
+          text-align: center;
         }
       }
     </style>
@@ -230,206 +249,58 @@
     <div class="container">
       <div class="card">
         <div class="header">
-          <h1 class="title">Create Workout Split</h1>
-          <p class="subtitle">Design your custom training program</p>
+          <!-- Added customized session button in top right -->
+          <a class="btn-top-right" href="{{ customized_session_link }}"
+            >⚙️ Customized Session</a
+          >
+          <h1 class="title">{{ title }}</h1>
+          <p class="meta">
+            Hi {{ name }}, here's your plan for <strong>{{ date }}</strong>
+            <span class="planet-accent"></span>
+            Let's crush it!
+          </p>
         </div>
 
-        <!-- Added workout split creation form -->
-        <form id="workoutSplitForm">
-          <div id="workoutDays">
-            <!-- Day 1 Template -->
-            <div class="form-section" data-day="1">
-              <div class="day-header">Day 1</div>
-
-              <div class="form-group">
-                <label class="form-label">Day Name</label>
-                <input
-                  type="text"
-                  class="form-input"
-                  name="dayName[]"
-                  placeholder="e.g., Monday, Push Day, Upper Body"
-                  required
-                />
+        <div class="workout-list">
+          {% for it in items %}
+          <div class="item">
+            <div class="name">{{ it.name }}</div>
+            <div class="exercise-details">
+              <div class="detail-item">
+                <span class="detail-label">Sets:</span>
+                <span>{{ it.sets }}</span>
               </div>
-
-              <div class="form-group">
-                <label class="form-label">Body Part(s) Trained</label>
-                <input
-                  type="text"
-                  class="form-input"
-                  name="bodyPart[]"
-                  placeholder="e.g., Chest & Triceps, Legs, Back & Biceps"
-                  required
-                />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Exercises</label>
-                <div class="exercises-container">
-                  <div class="exercise-entry">
-                    <div class="exercise-row">
-                      <input
-                        type="text"
-                        class="form-input"
-                        name="exerciseName[1][]"
-                        placeholder="Exercise name"
-                        required
-                      />
-                      <input
-                        type="number"
-                        class="form-input"
-                        name="sets[1][]"
-                        placeholder="Sets"
-                        min="1"
-                        required
-                      />
-                      <input
-                        type="text"
-                        class="form-input"
-                        name="reps[1][]"
-                        placeholder="Reps"
-                        required
-                      />
-                      <button
-                        type="button"
-                        class="btn btn-small btn-danger"
-                        onclick="removeExercise(this)"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  class="btn btn-secondary add-exercise-btn"
-                  onclick="addExercise(1)"
-                >
-                  + Add Exercise
-                </button>
+              <div class="detail-item">
+                <span class="detail-label">Reps:</span>
+                <span>{{ it.reps }}</span>
               </div>
             </div>
+            <a class="btn" href="{{ it.link }}">✓ Mark Complete</a>
           </div>
+          {% endfor %}
+        </div>
 
-          <div style="text-align: center; margin-bottom: 24px">
-            <button type="button" class="btn btn-secondary" onclick="addDay()">
-              + Add Another Day
-            </button>
-          </div>
+        <div class="complete-all">
+          <a class="btn btn-large" href="{{ complete_all_link }}"
+            >🎯 Complete All Exercises</a
+          >
+        </div>
 
-          <div class="form-actions">
-            <button type="submit" class="btn">💾 Save Workout Split</button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              onclick="previewSplit()"
-            >
-              👁️ Preview Split
-            </button>
-          </div>
-        </form>
+        <!-- Added flex container for side-by-side buttons -->
+        <div class="button-row">
+          <a class="btn btn-medium" href="{{ my_activity_link }}"
+            >📊 My Activity</a
+          >
+          <a class="btn btn-medium btn-secondary" href="{{ skip_today_link }}"
+            >⏭️ Skip for today</a
+          >
+        </div>
+
+        <div class="tip">
+          💡 Tip: These links are unique to you for today. Stay consistent and
+          achieve your fitness goals!
+        </div>
       </div>
     </div>
-
-    <!-- Added JavaScript for dynamic form functionality -->
-    <script>
-      let dayCount = 1;
-
-      function addDay() {
-        dayCount++;
-        const workoutDays = document.getElementById("workoutDays");
-        const newDay = document.createElement("div");
-        newDay.className = "form-section";
-        newDay.setAttribute("data-day", dayCount);
-
-        newDay.innerHTML = `
-          <div class="day-header">
-            Day ${dayCount}
-            <button type="button" class="btn btn-small btn-danger" style="float: right;" onclick="removeDay(this)">Remove Day</button>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Day Name</label>
-            <input type="text" class="form-input" name="dayName[]" placeholder="e.g., Monday, Push Day, Upper Body" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Body Part(s) Trained</label>
-            <input type="text" class="form-input" name="bodyPart[]" placeholder="e.g., Chest & Triceps, Legs, Back & Biceps" required>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Exercises</label>
-            <div class="exercises-container">
-              <div class="exercise-entry">
-                <div class="exercise-row">
-                  <input type="text" class="form-input" name="exerciseName[${dayCount}][]" placeholder="Exercise name" required>
-                  <input type="number" class="form-input" name="sets[${dayCount}][]" placeholder="Sets" min="1" required>
-                  <input type="text" class="form-input" name="reps[${dayCount}][]" placeholder="Reps" required>
-                  <button type="button" class="btn btn-small btn-danger" onclick="removeExercise(this)">Remove</button>
-                </div>
-              </div>
-            </div>
-            <button type="button" class="btn btn-secondary add-exercise-btn" onclick="addExercise(${dayCount})">+ Add Exercise</button>
-          </div>
-        `;
-
-        workoutDays.appendChild(newDay);
-      }
-
-      function removeDay(button) {
-        if (document.querySelectorAll(".form-section").length > 1) {
-          button.closest(".form-section").remove();
-        } else {
-          alert("You must have at least one day in your workout split!");
-        }
-      }
-
-      function addExercise(dayNumber) {
-        const day = document.querySelector(`[data-day="${dayNumber}"]`);
-        const exercisesContainer = day.querySelector(".exercises-container");
-
-        const newExercise = document.createElement("div");
-        newExercise.className = "exercise-entry";
-        newExercise.innerHTML = `
-          <div class="exercise-row">
-            <input type="text" class="form-input" name="exerciseName[${dayNumber}][]" placeholder="Exercise name" required>
-            <input type="number" class="form-input" name="sets[${dayNumber}][]" placeholder="Sets" min="1" required>
-            <input type="text" class="form-input" name="reps[${dayNumber}][]" placeholder="Reps" required>
-            <button type="button" class="btn btn-small btn-danger" onclick="removeExercise(this)">Remove</button>
-          </div>
-        `;
-
-        exercisesContainer.appendChild(newExercise);
-      }
-
-      function removeExercise(button) {
-        const exercisesContainer = button.closest(".exercises-container");
-        if (exercisesContainer.children.length > 1) {
-          button.closest(".exercise-entry").remove();
-        } else {
-          alert("Each day must have at least one exercise!");
-        }
-      }
-
-      function previewSplit() {
-        const formData = new FormData(
-          document.getElementById("workoutSplitForm")
-        );
-        console.log("[v0] Preview functionality - form data collected");
-        alert("Preview functionality would show your workout split here!");
-      }
-
-      document
-        .getElementById("workoutSplitForm")
-        .addEventListener("submit", function (e) {
-          e.preventDefault();
-          const formData = new FormData(this);
-          console.log("[v0] Form submitted - workout split data collected");
-          alert(
-            "Workout split saved successfully! This would integrate with your backend."
-          );
-        });
-    </script>
   </body>
 </html>
