@@ -36,12 +36,12 @@ EMAIL_TEMPLATE = os.environ.get("EMAIL_TEMPLATE", "daily.html").strip()
 # ================= PATHS =================
 CONFIG          = BASE / "config"
 RECIPIENTS_FN   = CONFIG / "recipients.json"
-SPLITS_DIR      = BASE / "splits"                 # default rotation split JSONs (push-day.json, etc.)
+SPLITS_DIR      = BASE / "splits"                 # default rotation split JSONs
 WORKOUT_SPLITS  = BASE / "workout_splits"         # per-user: workout_splits/<username>/*.json
 SCHEDULES_DIR   = BASE / "schedules"              # per-user rotation state: schedules/<username>.json
 OUT_DIR         = BASE / ".out"                   # optional local preview output
 
-# Default rotation (human titles) that map to files in SPLITS_DIR by slug
+# ====== default rotation and filename map (matches your repo) ======
 DEFAULT_ROTATION_TITLES = [
     "Push Day",
     "Pull Day",
@@ -49,6 +49,15 @@ DEFAULT_ROTATION_TITLES = [
     "Focus Day",
     "Full Body Power Day",
 ]
+
+# Map human titles to your actual file names in /splits
+TITLE_TO_FILE = {
+    "Push Day": "Push_Day.json",
+    "Pull Day": "Pull_Day.json",
+    "Leg + Abs Day": "Leg_plus_Abs_Day.json",
+    "Focus Day": "Focus_Day.json",
+    "Full Body Power Day": "Full_Body_Power_Day.json",
+}
 
 # =============== helpers ===============
 
@@ -88,11 +97,11 @@ def load_split_file(p: Path) -> dict:
     """Ensures expected schema exists."""
     data = load_json_file(p)
     if "title" not in data:
-        data["title"] = p.stem.replace("-", " ").title()
+        data["title"] = p.stem.replace("-", " ").replace("_", " ")
     data["exercises"] = data.get("exercises", [])
     return data
 
-def list_user_custom_splits(username: str) -> list[Path]:
+def list_user_custom_splits(username: str):
     """
     Returns a stable list of custom split files for the user:
       workout_splits/<username>/*.json
@@ -108,11 +117,22 @@ def list_user_custom_splits(username: str) -> list[Path]:
     return sorted(files, key=lambda p: p.name.lower())
 
 def load_default_split_by_title(title: str) -> dict:
-    """Loads a split from SPLITS_DIR using title -> slug(title).json"""
+    """
+    Loads a split from /splits using:
+      1) explicit TITLE_TO_FILE mapping (matches your underscored files)
+      2) fallback to slug(title).json (for any future files you might add)
+    """
+    if title in TITLE_TO_FILE:
+        fn = SPLITS_DIR / TITLE_TO_FILE[title]
+        if fn.exists():
+            return load_split_file(fn)
+    # fallback for any new titles you may add later
     fn = SPLITS_DIR / f"{slug(title)}.json"
-    if not fn.exists():
-        raise FileNotFoundError(f"Missing default split file: {fn}")
-    return load_split_file(fn)
+    if fn.exists():
+        return load_split_file(fn)
+    raise FileNotFoundError(
+        f"Missing split file for title '{title}'. Tried '{TITLE_TO_FILE.get(title)}' and '{fn.name}'."
+    )
 
 def load_sched(username: str) -> dict:
     SCHEDULES_DIR.mkdir(parents=True, exist_ok=True)
