@@ -1,8 +1,0 @@
-{
-  "title": "Pull Day",
-  "exercises": [
-    { "id": "deadlift", "name": "Deadlift", "sets": 3, "reps": "5" },
-    { "id": "barbell_row", "name": "Barbell Row", "sets": 3, "reps": "6-8" },
-    { "id": "pullups", "name": "Pull-ups", "sets": 3, "reps": "AMRAP" }
-  ]
-}

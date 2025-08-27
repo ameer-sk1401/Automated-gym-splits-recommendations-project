@@ -1,6 +1,10 @@
 // netlify/functions/customize.js
 const crypto = require("crypto");
 
+/** Required env:
+ *  REPO_OWNER, REPO_NAME, GH_PAT, SIGNING_SECRET
+ */
+
 const OWNER = process.env.REPO_OWNER;
 const REPO = process.env.REPO_NAME;
 const TOKEN = process.env.GH_PAT;
@@ -9,7 +13,6 @@ const SECRET = process.env.SIGNING_SECRET;
 exports.handler = async (event) => {
   try {
     if (event.httpMethod === "GET") {
-      // show the form (requires signed ?u,ts,t)
       const { u, ts, t } = event.queryStringParameters || {};
       const check = verify({ u, ts }, t);
       if (!check.ok)
@@ -19,16 +22,15 @@ exports.handler = async (event) => {
           410,
           page("Expired", `<p>Link is older than 48 hours.</p>`)
         );
-
-      return html(200, formPage(u, ts, t)); // inject hidden fields so POST keeps signature
+      return html(200, formPage(u, ts, t)); // serve secure form
     }
 
     if (event.httpMethod === "POST") {
-      // save plan.json
       const body = parseForm(event.body || "");
       const u = (body.u || "").trim();
       const ts = (body.ts || "").trim();
       const t = (body.t || "").trim();
+
       const check = verify({ u, ts }, t);
       if (!check.ok)
         return html(403, page("Auth error", `<p>${escape(check.msg)}</p>`));
@@ -38,9 +40,8 @@ exports.handler = async (event) => {
           page("Expired", `<p>Link is older than 48 hours.</p>`)
         );
 
-      // Build plan from submitted arrays
-      const plan = buildPlanFromBody(body);
-      if (!plan || !Array.isArray(plan.days) || plan.days.length === 0) {
+      const days = buildDaysFromBody(body); // [{title, target_muscles, exercises:[{id,name,sets,reps}]}...]
+      if (!days.length) {
         return html(
           400,
           page(
@@ -50,28 +51,34 @@ exports.handler = async (event) => {
         );
       }
 
-      // Write workout_splits/<username>/plan.json
-      const gh = new GitHubRepo(OWNER, REPO, TOKEN);
-      const path = `workout_splits/${u}/plan.json`;
-
-      // Optional: keep previous plan if user submits identical (idempotent)
-      const prev = await gh.get(path).catch(() => null);
-      if (prev && deepEqual(prev.json, plan)) {
+      if (!OWNER || !REPO || !TOKEN) {
         return html(
-          200,
-          page("Saved", `<p>No changes. Your plan was already up to date.</p>`)
+          500,
+          page(
+            "Server misconfig",
+            `<p>Missing REPO_OWNER/REPO_NAME/GH_PAT env.</p>`
+          )
         );
       }
+      const gh = new GitHubRepo(OWNER, REPO, TOKEN);
 
-      await gh.put(path, plan, prev?.sha);
+      // Save each day to workout_splits/<u>/<Title>.json (exact filenames)
+      let saved = 0;
+      for (const day of days) {
+        const filename = titleToFilename(day.title);
+        const path = `workout_splits/${u}/${filename}`;
+        const prev = await gh.get(path).catch(() => null);
+        if (prev && JSON.stringify(prev.json) === JSON.stringify(day)) continue;
+        await gh.put(path, day, prev?.sha);
+        saved++;
+      }
 
       return html(
         200,
         page(
           "Saved ✅",
-          `<p>Your custom split has been saved for <b>${escape(u)}</b>.</p>
-         <p>File: <code>${escape(path)}</code></p>
-         <p>You’ll receive emails based on this plan from now on.</p>`
+          `<p>Saved ${saved} custom day file(s) for <b>${escape(u)}</b>.</p>
+         <p>Any day you didn't submit will fall back to the default split.</p>`
         )
       );
     }
@@ -85,7 +92,7 @@ exports.handler = async (event) => {
   }
 };
 
-/* ----------------- helpers ----------------- */
+/* ----------------- signing & utils ----------------- */
 
 function verify(params, token) {
   if (!SECRET)
@@ -96,10 +103,12 @@ function verify(params, token) {
   if (token !== expected) return { ok: false, msg: "Invalid signature" };
   return { ok: true };
 }
+
 function fresh(ts) {
   const now = Math.floor(Date.now() / 1000);
   return isFinite(+ts) && Math.abs(now - Number(ts)) <= 172800; // 48h
 }
+
 function canonicalize(o) {
   return Object.keys(o)
     .sort()
@@ -127,12 +136,10 @@ function parseForm(raw) {
     const [k, v] = pair.split("=");
     const key = decodeURIComponent(k || "");
     const val = decodeURIComponent(v || "");
-    // support multi keys like dayName[]
     if (key.endsWith("[]")) {
       const base = key.slice(0, -2);
       (out[base] ||= []).push(val);
     } else if (/\[\d+\]\[\]/.test(key)) {
-      // exerciseName[1][], sets[2][]...
       const base = key.replace(/\[\d+\]\[\]$/, "");
       const idx = (key.match(/\[(\d+)\]\[\]$/) || [])[1];
       out[base] ||= {};
@@ -144,48 +151,8 @@ function parseForm(raw) {
   return out;
 }
 
-function buildPlanFromBody(b) {
-  // Inputs created by your form:
-  // dayName[]          -> array
-  // bodyPart[]         -> array
-  // exerciseName[1][]  -> array per day
-  // sets[1][]          -> array per day
-  // reps[1][]          -> array per day
-  const names = b.dayName || [];
-  const parts = b.bodyPart || [];
-  const exNames = b.exerciseName || {};
-  const sets = b.sets || {};
-  const reps = b.reps || {};
-
-  const days = [];
-  for (let i = 0; i < names.length; i++) {
-    const dayIdx = String(i + 1); // matches form indexes 1..N
-    const list = [];
-    const nArr = exNames[dayIdx] || [];
-    const sArr = sets[dayIdx] || [];
-    const rArr = reps[dayIdx] || [];
-    const len = Math.max(nArr.length, sArr.length, rArr.length);
-    for (let j = 0; j < len; j++) {
-      const name = (nArr[j] || "").trim();
-      if (!name) continue;
-      const setsNum = Number(sArr[j] || "0");
-      const repsTxt = (rArr[j] || "").trim();
-      list.push({
-        id: slug(`${name}-${j + 1}`),
-        name,
-        sets: setsNum || undefined,
-        reps: repsTxt || undefined,
-      });
-    }
-    if (list.length === 0) continue;
-    days.push({
-      title: names[i] || `Day ${i + 1}`,
-      body_part: parts[i] || "",
-      exercises: list,
-    });
-  }
-  if (!days.length) return null;
-  return { plan_title: "Custom", days }; // composite plan
+function titleToFilename(title) {
+  return title.replace(/ /g, "_").replace(/\+/g, "plus") + ".json";
 }
 
 function slug(s) {
@@ -195,10 +162,52 @@ function slug(s) {
     .replace(/^-|-$/g, "");
 }
 
-// very small deep equal for our plan shape
-function deepEqual(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
+function buildDaysFromBody(b) {
+  // From the form: dayName[], bodyPart[], exerciseName[1][], sets[1][], reps[1][]
+  const names = b.dayName || [];
+  const parts = b.bodyPart || [];
+  const exNames = b.exerciseName || {};
+  const sets = b.sets || {};
+  const reps = b.reps || {};
+
+  const out = [];
+  for (let i = 0; i < names.length; i++) {
+    const title = (names[i] || "").trim();
+    if (!title) continue;
+
+    const dayIdx = String(i + 1);
+    const nArr = exNames[dayIdx] || [];
+    const sArr = sets[dayIdx] || [];
+    const rArr = reps[dayIdx] || [];
+    const ex = [];
+    for (let j = 0; j < nArr.length; j++) {
+      const name = (nArr[j] || "").trim();
+      if (!name) continue;
+      ex.push({
+        id: slug(`${name}-${j + 1}`),
+        name,
+        sets: sArr[j] ? Number(sArr[j]) : undefined,
+        reps: rArr[j] || undefined,
+      });
+    }
+    if (!ex.length) continue;
+
+    const muscles = parts[i]
+      ? String(parts[i])
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+    out.push({
+      title,
+      target_muscles: muscles,
+      exercises: ex,
+    });
+  }
+  return out;
 }
+
+/* ----------------- HTML ----------------- */
 
 function page(title, body) {
   return `<!doctype html><meta charset="utf-8" />
@@ -206,83 +215,78 @@ function page(title, body) {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#1a1a1a;min-height:100vh;padding:20px;display:flex;align-items:center;justify-content:center}
-    .container{width:100%;max-width:700px}
+    .container{width:100%;max-width:760px}
     .card{background:rgba(45,45,45,.95);backdrop-filter:blur(10px);border-radius:20px;padding:24px;border:1px solid rgba(255,255,255,.1);color:#eee}
     a.btn,button.btn{display:inline-block;padding:12px 24px;border-radius:25px;text-decoration:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#4A1458;font-weight:700;border:none;cursor:pointer}
+    input,button{font:inherit}
+    input[type="text"],input[type="number"]{width:100%;padding:10px;border-radius:10px;border:1px solid #444;background:#2a2a2a;color:#eee}
+    .section{margin:12px 0;padding:12px;border:1px solid #444;border-radius:12px}
+    label{color:#cfcfcf;font-size:14px}
   </style>
   <div class="container"><div class="card">${body}</div></div>`;
 }
+
 function formPage(u, ts, t) {
-  // Your form HTML, with hidden fields for u/ts/t and method=POST action=/customize
-  // (Trimmed styles: you can paste your full form_index.html if you prefer.)
-  return `
-    <h2>Create Workout Split</h2>
-    <p style="color:#bbb">Design a multi-day plan. Days appear in your email rotation.</p>
+  return page(
+    "Create Workout Split",
+    `
+    <h2 style="margin:0 0 8px">Create Workout Split</h2>
+    <p style="color:#bbb;margin:0 0 16px">Add one or more days. Any day you omit will use the default plan.</p>
     <form method="POST" action="/.netlify/functions/customize" id="workoutSplitForm">
       <input type="hidden" name="u" value="${escape(u)}" />
       <input type="hidden" name="ts" value="${escape(ts)}" />
-      <input type="hidden" name="t" value="${escape(t)}" />
+      <input type="hidden" name="t"  value="${escape(t)}" />
 
-      <!-- Minimal starter: one day + one exercise; JS adds more -->
-      <div class="section" data-day="1" style="margin:12px 0;padding:12px;border:1px solid #444;border-radius:12px">
-        <div><label>Day Name</label><br/><input name="dayName[]" required placeholder="Push Day" /></div>
-        <div><label>Body Part(s)</label><br/><input name="bodyPart[]" placeholder="Chest & Triceps" /></div>
-        <div class="exercises">
-          <div class="exercise">
-            <input name="exerciseName[1][]" placeholder="Bench Press" required />
-            <input name="sets[1][]" type="number" min="1" placeholder="Sets" />
-            <input name="reps[1][]" placeholder="Reps" />
-            <button type="button" onclick="this.parentElement.remove()">Remove</button>
-          </div>
-        </div>
-        <button type="button" onclick="addExercise(1)">+ Add Exercise</button>
-      </div>
-
-      <div><button type="button" onclick="addDay()">+ Add Another Day</button></div>
+      <div id="days"></div>
+      <div style="margin:12px 0"><button type="button" class="btn" onclick="addDay()">+ Add Day</button></div>
       <div style="margin-top:16px"><button class="btn" type="submit">💾 Save Workout Split</button></div>
     </form>
 
     <script>
-      let dayCount = 1;
+      let dayCount = 0;
       function addDay(){
         dayCount++;
-        const cont = document.getElementById('workoutSplitForm');
-        const before = cont.querySelector('div[style*="margin-top:16px"]');
         const wrap = document.createElement('div');
         wrap.className = 'section';
         wrap.setAttribute('data-day', dayCount);
-        wrap.style = "margin:12px 0;padding:12px;border:1px solid #444;border-radius:12px";
         wrap.innerHTML = \`
-          <div><strong>Day \${dayCount}</strong> <button type="button" onclick="this.closest('.section').remove()">Remove Day</button></div>
-          <div><label>Day Name</label><br/><input name="dayName[]" required placeholder="Pull Day" /></div>
-          <div><label>Body Part(s)</label><br/><input name="bodyPart[]" placeholder="Back & Biceps" /></div>
-          <div class="exercises">
-            <div class="exercise">
-              <input name="exerciseName[\${dayCount}][]" placeholder="Exercise" required />
-              <input name="sets[\${dayCount}][]" type="number" min="1" placeholder="Sets" />
-              <input name="reps[\${dayCount}][]" placeholder="Reps" />
-              <button type="button" onclick="this.parentElement.remove()">Remove</button>
-            </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>Day \${dayCount}</strong>
+            <button type="button" class="btn" style="padding:6px 12px" onclick="this.closest('.section').remove()">Remove Day</button>
           </div>
-          <button type="button" onclick="addExercise(\${dayCount})">+ Add Exercise</button>
+          <div style="margin-top:8px">
+            <label>Day Name (e.g., Push Day)</label>
+            <input name="dayName[]" placeholder="Push Day" required />
+          </div>
+          <div style="margin-top:8px">
+            <label>Body Part(s) (comma-separated)</label>
+            <input name="bodyPart[]" placeholder="Chest, Triceps, Shoulders" />
+          </div>
+          <div class="exercises" style="margin-top:8px"></div>
+          <div style="margin-top:8px"><button type="button" class="btn" onclick="addExercise(\${dayCount})">+ Add Exercise</button></div>
         \`;
-        cont.insertBefore(wrap, before);
+        document.getElementById('days').appendChild(wrap);
+        addExercise(dayCount);
       }
       function addExercise(day){
-        const section = document.querySelector('.section[data-day="'+day+'"] .exercises');
+        const parent = document.querySelector('.section[data-day="'+day+'"] .exercises');
         const row = document.createElement('div');
-        row.className = 'exercise';
+        row.style = "display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:end;margin:6px 0";
         row.innerHTML = \`
-          <input name="exerciseName[\${day}][]" placeholder="Exercise" required />
-          <input name="sets[\${day}][]" type="number" min="1" placeholder="Sets" />
-          <input name="reps[\${day}][]" placeholder="Reps" />
-          <button type="button" onclick="this.parentElement.remove()">Remove</button>
+          <div><label>Exercise</label><input name="exerciseName[\${day}][]" required placeholder="Bench Press"/></div>
+          <div><label>Sets</label><input type="number" min="1" name="sets[\${day}][]" placeholder="4" /></div>
+          <div><label>Reps</label><input name="reps[\${day}][]" placeholder="8-10" /></div>
+          <div><button type="button" class="btn" style="padding:6px 12px" onclick="this.parentElement.parentElement.remove()">Remove</button></div>
         \`;
-        section.appendChild(row);
+        parent.appendChild(row);
       }
+      // seed one day on load
+      addDay();
     </script>
-  `;
+  `
+  );
 }
+
 function html(status, body) {
   return {
     statusCode: status,
@@ -307,7 +311,7 @@ function escape(s) {
   );
 }
 
-/* ---------- GitHub helper ---------- */
+/* ---------- GitHub API helper ---------- */
 class GitHubRepo {
   constructor(owner, repo, token) {
     this.base = `https://api.github.com/repos/${owner}/${repo}/contents`;

@@ -1,0 +1,58 @@
+{
+  "title": "Full Body Power Day",
+  "target_muscles": [
+    "Full Body",
+    "Strength",
+    "Explosiveness"
+  ],
+  "exercises": [
+    {
+      "id": "deadlift",
+      "name": "Romanian Deadlift",
+      "sets": 5,
+      "reps": "6-8"
+    },
+    {
+      "id": "front_squat",
+      "name": "Front Squat",
+      "sets": 4,
+      "reps": "5-7"
+    },
+    {
+      "id": "bench_press",
+      "name": "Flat Barbell Bench Press",
+      "sets": 4,
+      "reps": "5-7"
+    },
+    {
+      "id": "overhead_press",
+      "name": "Standing Overhead Press",
+      "sets": 4,
+      "reps": "6-8"
+    },
+    {
+      "id": "pull_ups",
+      "name": "Pull Ups",
+      "sets": 4,
+      "reps": "6-8"
+    },
+    {
+      "id": "barbell_row",
+      "name": "Barbell Row",
+      "sets": 4,
+      "reps": "6-8"
+    },
+    {
+      "id": "farmer_walk",
+      "name": "Farmer\u2019s Walk",
+      "sets": 3,
+      "reps": "40m carry"
+    },
+    {
+      "id": "core_stability",
+      "name": "Ab Wheel Rollouts or Heavy Plank",
+      "sets": 3,
+      "reps": "10-12 or 60s hold"
+    }
+  ]
+}

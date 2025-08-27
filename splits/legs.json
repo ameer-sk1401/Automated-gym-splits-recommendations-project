@@ -1,8 +1,0 @@
-{
-  "title": "Legs Day",
-  "exercises": [
-    { "id": "squat", "name": "Back Squat", "sets": 4, "reps": "5-8" },
-    { "id": "rdl", "name": "Romanian Deadlift", "sets": 3, "reps": "8-10" },
-    { "id": "lunges", "name": "Walking Lunges", "sets": 3, "reps": "10 each" }
-  ]
-}
