@@ -130,12 +130,12 @@
 
       .btn {
         display: inline-block;
-        padding: 12px 24px;
-        border-radius: 25px;
+        padding: 14px 24px;
+        border-radius: 20px;
         text-decoration: none;
         background: linear-gradient(135deg, #ffd700, #ffa500);
         color: #4a1458;
-        font-weight: 700;
+        font-weight: 600;
         font-size: 14px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -143,6 +143,8 @@
         box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
         border: none;
         cursor: pointer;
+        text-align: center;
+        min-width: 120px;
       }
 
       .btn-danger {
@@ -154,6 +156,7 @@
       .btn-danger:hover {
         background: linear-gradient(135deg, #c82333, #dc3545);
         box-shadow: 0 6px 16px rgba(220, 53, 69, 0.4);
+        transform: translateY(-1px);
       }
 
       .btn:hover {
@@ -170,14 +173,16 @@
       .btn-large {
         padding: 16px 32px;
         font-size: 16px;
-        border-radius: 30px;
+        border-radius: 25px;
+        min-width: 200px;
       }
 
-      /* Added styles for medium buttons and button row layout */
+      /* Updated medium buttons to match customize session style */
       .btn-medium {
-        padding: 14px 28px;
-        font-size: 15px;
-        border-radius: 25px;
+        padding: 12px 20px;
+        font-size: 13px;
+        border-radius: 20px;
+        min-width: 100px;
       }
 
       .btn-secondary {
@@ -189,13 +194,16 @@
       .btn-secondary:hover {
         background: linear-gradient(135deg, #888888, #666666);
         box-shadow: 0 6px 16px rgba(102, 102, 102, 0.4);
+        transform: translateY(-1px);
       }
 
+      /* Updated button row layout to match screenshot */
       .button-row {
         display: flex;
-        gap: 16px;
+        gap: 12px;
         justify-content: center;
         margin-bottom: 24px;
+        flex-wrap: wrap;
       }
 
       .btn-top-right {
@@ -238,10 +246,16 @@
           gap: 8px;
         }
 
-        /* Added responsive layout for button row */
+        /* Updated responsive layout for better mobile experience */
         .button-row {
           flex-direction: column;
-          gap: 12px;
+          gap: 10px;
+          align-items: center;
+        }
+
+        .btn-medium {
+          width: 100%;
+          max-width: 200px;
         }
 
         .btn-top-right {
