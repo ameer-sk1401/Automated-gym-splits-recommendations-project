@@ -3,13 +3,15 @@
   "completions": {
     "Charan": {
       "pull_ups": true,
-      "lat_pull_down_variations": true
+      "lat_pull_down_variations": true,
+      "rowing": true
     }
   },
   "timestamps": {
     "Charan": {
       "pull_ups": "2025-08-27T02:31:46.586Z",
-      "lat_pull_down_variations": "2025-08-27T02:31:58.165Z"
+      "lat_pull_down_variations": "2025-08-27T02:31:58.165Z",
+      "rowing": "2025-08-27T02:32:02.548Z"
     }
   }
 }
