@@ -31,7 +31,6 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 FROM_EMAIL    = os.environ.get("FROM_EMAIL", SMTP_USERNAME or "no-reply@example.com")
 
 # Choose which email template file to render from email_templates/
-# (keep "daily.html" if you want the current Planet style)
 EMAIL_TEMPLATE = os.environ.get("EMAIL_TEMPLATE", "daily.html").strip()
 
 # ================= PATHS =================
@@ -43,7 +42,13 @@ SCHEDULES_DIR   = BASE / "schedules"              # per-user rotation state: sch
 OUT_DIR         = BASE / ".out"                   # optional local preview output
 
 # Default rotation (human titles) that map to files in SPLITS_DIR by slug
-DEFAULT_ROTATION_TITLES = ["Push Day", "Pull Day", "Leg + Abs Day", "Focus Day", "Full Body Power Day"]
+DEFAULT_ROTATION_TITLES = [
+    "Push Day",
+    "Pull Day",
+    "Leg + Abs Day",
+    "Focus Day",
+    "Full Body Power Day",
+]
 
 # =============== helpers ===============
 
@@ -83,7 +88,6 @@ def load_split_file(p: Path) -> dict:
     """Ensures expected schema exists."""
     data = load_json_file(p)
     if "title" not in data:
-        # derive title from filename if needed
         data["title"] = p.stem.replace("-", " ").title()
     data["exercises"] = data.get("exercises", [])
     return data
@@ -99,14 +103,12 @@ def list_user_custom_splits(username: str) -> list[Path]:
     if not user_dir.exists() or not user_dir.is_dir():
         return []
     files = [p for p in user_dir.glob("*.json") if p.is_file()]
-    # Exclude plan.json if it exists; you said not to use plans.json anymore
+    # Exclude plan.json if it exists; not used anymore
     files = [p for p in files if p.name.lower() != "plan.json"]
     return sorted(files, key=lambda p: p.name.lower())
 
 def load_default_split_by_title(title: str) -> dict:
-    """
-    Loads a split from SPLITS_DIR using title -> slug(title).json
-    """
+    """Loads a split from SPLITS_DIR using title -> slug(title).json"""
     fn = SPLITS_DIR / f"{slug(title)}.json"
     if not fn.exists():
         raise FileNotFoundError(f"Missing default split file: {fn}")
@@ -172,6 +174,9 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
     user = recipient.get("username") or recipient["id"]
     now_ts = str(int(time.time()))
 
+    submit_base = f"{NETLIFY_BASE}/submit" if NETLIFY_BASE else SUBMIT_BASE_URL
+    delete_func = f"{NETLIFY_BASE}/.netlify/functions/delete_activity" if NETLIFY_BASE else ""
+
     # Per-exercise signed links to submit function
     items = []
     for ex in split.get("exercises", []):
@@ -180,23 +185,17 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
             "name": ex.get("name", ex.get("id", "Exercise")),
             "sets": ex.get("sets"),
             "reps": ex.get("reps"),
-            "link": build_signed_url(f"{NETLIFY_BASE}/submit" if NETLIFY_BASE else SUBMIT_BASE_URL, params),
+            "link": build_signed_url(submit_base, params),
         })
 
     # Complete ALL
-    complete_all_link = build_signed_url(
-        f"{NETLIFY_BASE}/submit" if NETLIFY_BASE else SUBMIT_BASE_URL,
-        {"u": user, "d": date_str, "ex": "ALL", "ts": now_ts}
-    )
+    complete_all_link = build_signed_url(submit_base, {"u": user, "d": date_str, "ex": "ALL", "ts": now_ts})
 
     # Activity page (no signature required to view)
     my_activity_link = f"{NETLIFY_BASE}/activity?u={quote_plus(user)}" if NETLIFY_BASE else ""
 
     # Skip for today (signed)
-    skip_today_link = build_signed_url(
-        f"{NETLIFY_BASE}/submit" if NETLIFY_BASE else SUBMIT_BASE_URL,
-        {"u": user, "d": date_str, "ex": "SKIP", "ts": now_ts}
-    )
+    skip_today_link = build_signed_url(submit_base, {"u": user, "d": date_str, "ex": "SKIP", "ts": now_ts})
 
     # Customized Session page (signed u+ts)
     customized_session_link = (
@@ -204,11 +203,19 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
         if NETLIFY_BASE else ""
     )
 
-    # NEW: Delete today's activity (links to confirm page in delete_activity function)
+    # Delete links (signed) -> confirmation UI in delete_activity function
     delete_activity_link = (
-        build_signed_url(f"{NETLIFY_BASE}/.netlify/functions/delete_activity",
-                         {"u": user, "scope": "day", "d": date_str, "ts": now_ts})
-        if NETLIFY_BASE else ""
+        build_signed_url(delete_func, {"u": user, "scope": "day", "d": date_str, "ts": now_ts})
+        if delete_func else ""
+    )
+    yyyy, mm, _dd = date_str.split("-")
+    delete_month_link = (
+        build_signed_url(delete_func, {"u": user, "scope": "month", "y": yyyy, "m": mm, "ts": now_ts})
+        if delete_func else ""
+    )
+    delete_all_link = (
+        build_signed_url(delete_func, {"u": user, "scope": "all", "ts": now_ts})
+        if delete_func else ""
     )
 
     return tmpl.render(
@@ -221,6 +228,8 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
         skip_today_link=skip_today_link,
         customized_session_link=customized_session_link,
         delete_activity_link=delete_activity_link,
+        delete_month_link=delete_month_link,
+        delete_all_link=delete_all_link,
     )
 
 def build_message_html(recipient: dict, split: dict, date_str: str) -> MIMEMultipart:
@@ -259,7 +268,7 @@ def main():
         raise SystemExit("SIGNING_SECRET is required to sign links.")
 
     recipients = load_json(RECIPIENTS_FN)
-    date_str = today_local_iso()  # your util handles timezone (EST if you set it there)
+    date_str = today_local_iso()  # your util handles timezone
 
     for r in recipients:
         user = r.get("username") or r["id"]
