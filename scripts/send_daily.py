@@ -15,7 +15,7 @@ from jinja2 import Template
 from datetime import date, timedelta
 
 # ----- project libs -----
-from scripts.lib.utils import BASE, load_json, today_local_iso, build_link
+from scripts.lib.utils import BASE, load_json, today_local_iso
 from scripts.lib.templates import load_email_template
 
 # ---------- ENV ----------
@@ -102,6 +102,32 @@ def pick_today_index(username: str, today: str, total: int) -> int:
     sched.update({"current_index": idx, "last_action": "NONE", "last_action_date": today})
     save_sched(username, sched)
     return idx
+
+def build_link(base_url: str, params: dict) -> str:
+    """
+    Build a signed URL for /submit clicks.
+    Signs the given params (expects at least u,d,ex,ts) with SIGNING_SECRET
+    and appends t=<signature>. Uses URL-safe base64 without padding.
+    """
+    if not base_url:
+        raise RuntimeError("SUBMIT_BASE_URL is empty")
+    if not SIGNING_SECRET:
+        raise RuntimeError("SIGNING_SECRET not set")
+
+    # canonicalize without 't'
+    canon_keys = sorted(k for k in params.keys() if k != "t")
+    canonical = "&".join(f"{k}={quote_plus(params[k])}" for k in canon_keys)
+
+    mac = hmac.new(SIGNING_SECRET.encode("utf-8"),
+                   canonical.encode("utf-8"),
+                   hashlib.sha256).digest()
+    sig = base64.urlsafe_b64encode(mac).decode("ascii").rstrip("=")
+
+    # full query incl. signature
+    full = dict(params)
+    full["t"] = sig
+    qs = "&".join(f"{k}={quote_plus(v)}" for k, v in full.items())
+    return f"{base_url}?{qs}"
 
 def sign_params_simple(params: dict) -> str:
     """
