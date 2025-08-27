@@ -21,3 +21,10 @@
   to = "/.netlify/functions/customize"
   status = 200
   force = true
+
+
+[[redirects]]
+  from = "/delete"
+  to = "/.netlify/functions/delete_activity"
+  status = 200
+  force = true
