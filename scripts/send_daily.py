@@ -14,7 +14,7 @@ from email.mime.text import MIMEText
 from jinja2 import Template
 from datetime import date, timedelta
 
-# ----- project libs (as used earlier in your repo) -----
+# ----- project libs -----
 from scripts.lib.utils import BASE, load_json, today_local_iso, build_link
 from scripts.lib.templates import load_email_template
 
@@ -32,12 +32,12 @@ FROM_EMAIL    = os.environ.get("FROM_EMAIL", SMTP_USERNAME)
 # ---------- PATHS ----------
 CONFIG         = BASE / "config"
 RECIPIENTS_FN  = CONFIG / "recipients.json"
-SPLITS_DIR     = BASE / "splits"                 # default rotation split JSONs (e.g., push-day.json, pull-day.json, leg-day.json)
+SPLITS_DIR     = BASE / "splits"                 # default rotation split JSONs
 WORKOUT_SPLITS = BASE / "workout_splits"         # per-user plans -> workout_splits/<username>/plan.json
 SCHEDULES_DIR  = BASE / "schedules"              # per-user rotation state -> schedules/<username>.json
-OUT_DIR        = BASE / ".out"                   # for local previews if you want
+OUT_DIR        = BASE / ".out"                   # preview copies (optional)
 
-# Fallback default rotation titles (must map to files in SPLITS_DIR via slug)
+# Default rotation titles (must map to files in SPLITS_DIR via slug)
 DEFAULT_ROTATION = ["Push day", "Pull day", "Leg day"]
 
 
@@ -105,7 +105,7 @@ def pick_today_index(username: str, today: str, total: int) -> int:
 
 def sign_params_simple(params: dict) -> str:
     """
-    Sign with the same URL-safe base64 HMAC-SHA256 as submit/customize functions.
+    Sign with URL-safe base64 HMAC-SHA256 (same as submit/customize functions).
     Only used here for the /customize link (we sign u+ts).
     """
     if not SIGNING_SECRET:
@@ -116,7 +116,6 @@ def sign_params_simple(params: dict) -> str:
     return base64.urlsafe_b64encode(mac).decode("ascii").rstrip("=")
 
 def quote_plus(s: str) -> str:
-    # minimal encoder consistent with earlier usage
     from urllib.parse import quote_plus as qp
     return qp(str(s), safe="")
 
@@ -134,27 +133,28 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
 
     # Per-exercise links
     items = []
-    for ex in split["exercises"]:
-        params = {"u": user, "d": date_str, "ex": ex["id"], "ts": str(int(time.time()))}
+    now_ts = str(int(time.time()))
+    for ex in split.get("exercises", []):
+        params = {"u": user, "d": date_str, "ex": ex["id"], "ts": now_ts}
         items.append({
-            "name": ex["name"],
+            "name": ex.get("name"),
             "sets": ex.get("sets"),
             "reps": ex.get("reps"),
-            "link": build_link(SUBMIT_BASE_URL, params),   # uses existing signed build_link from your utils
+            "link": build_link(SUBMIT_BASE_URL, params),   # your signed helper
         })
 
     # Complete ALL link
-    complete_all_link = build_link(SUBMIT_BASE_URL, {"u": user, "d": date_str, "ex": "ALL", "ts": str(int(time.time()))})
+    complete_all_link = build_link(SUBMIT_BASE_URL, {"u": user, "d": date_str, "ex": "ALL", "ts": now_ts})
 
     # Activity link (no signature required)
     my_activity_link = f"{NETLIFY_BASE}/activity?u={quote_plus(user)}" if NETLIFY_BASE else ""
 
     # Skip link (signed)
-    skip_today_link = build_link(SUBMIT_BASE_URL, {"u": user, "d": date_str, "ex": "SKIP", "ts": str(int(time.time()))})
+    skip_today_link = build_link(SUBMIT_BASE_URL, {"u": user, "d": date_str, "ex": "SKIP", "ts": now_ts})
 
     # Customized Session link (signed with u+ts)
     customized_session_link = (
-        build_signed_url(f"{NETLIFY_BASE}/customize", {"u": user, "ts": str(int(time.time()))})
+        build_signed_url(f"{NETLIFY_BASE}/customize", {"u": user, "ts": now_ts})
         if NETLIFY_BASE else ""
     )
 
@@ -189,7 +189,6 @@ def pick_plan_and_split_for_today(username: str, today: str) -> dict:
 
 def build_message_html(recipient: dict, split: dict, date_str: str) -> MIMEMultipart:
     html = render_email_html(recipient, split, date_str)
-
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"{split.get('title', 'Today')} — {date_str}"
     msg["From"] = FROM_EMAIL
@@ -199,7 +198,7 @@ def build_message_html(recipient: dict, split: dict, date_str: str) -> MIMEMulti
 
 def smtp_send(msg: MIMEMultipart, to_addr: str):
     last_err = None
-    for attempt in range(2):
+    for _ in range(2):
         try:
             with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=25) as server:
                 server.ehlo()
@@ -233,10 +232,12 @@ def main():
         print(f"→ Sending to {r['email']} ...")
         smtp_send(msg, r["email"])
 
-        # Optional: write preview copy
-        OUT_DIR.mkdir(exist_ok=True, parents=True)
-        preview_fn = OUT_DIR / f"{user}-{date_str}.html"
-        preview_fn.write_text(msg.as_string(), encoding="utf-8")
+        # Optional: write preview copy (full MIME email)
+        try:
+            OUT_DIR.mkdir(exist_ok=True, parents=True)
+            (OUT_DIR / f"{user}-{date_str}.eml").write_text(msg.as_string(), encoding="utf-8")
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     main()
