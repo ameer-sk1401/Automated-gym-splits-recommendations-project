@@ -3,7 +3,5 @@
   "Tuesday": "pull.json",
   "Wednesday": "legs.json",
   "Thursday": "push.json",
-  "Friday": "pull.json",
-  "Saturday": "legs.json",
-  "Sunday": "legs.json"
+  "Friday": "pull.json"
 }
