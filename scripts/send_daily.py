@@ -17,7 +17,7 @@ from urllib.parse import quote_plus as _quote_plus
 
 # ----- project libs you already have -----
 from scripts.lib.utils import BASE, load_json, today_local_iso
-from scripts.lib.templates import load_email_template
+from scripts.lib.templates import load_email_template  # NOTE: no-arg function
 
 # ================== ENV ==================
 SUBMIT_BASE_URL = os.environ.get("SUBMIT_BASE_URL", "").strip()   # e.g. https://gym-data-submission.netlify.app/submit
@@ -29,9 +29,6 @@ SMTP_PORT     = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 FROM_EMAIL    = os.environ.get("FROM_EMAIL", SMTP_USERNAME or "no-reply@example.com")
-
-# Choose which email template file to render from email_templates/
-EMAIL_TEMPLATE = os.environ.get("EMAIL_TEMPLATE", "daily.html").strip()
 
 # ================= PATHS =================
 CONFIG          = BASE / "config"
@@ -187,9 +184,8 @@ def pick_split_for_today(username: str, today_iso: str) -> dict:
 # ============ email building ============
 
 def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
-    # allow per-recipient template override with "template": "daily.html"
-    tpl_name = recipient.get("template") or EMAIL_TEMPLATE
-    tmpl = Template(load_email_template(tpl_name))
+    # Your loader takes NO args; it returns the contents of email_templates/daily.html
+    tmpl = Template(load_email_template())
 
     user = recipient.get("username") or recipient["id"]
     now_ts = str(int(time.time()))
