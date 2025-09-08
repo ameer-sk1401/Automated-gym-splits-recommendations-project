@@ -1,0 +1,8 @@
+name = "gym-splits-reminder"
+main = "index.js"
+compatibility_date = "2024-12-01"
+account_id = "5d5e7c779995f98cd1996b8c41c390bc"
+
+[vars]
+REPO_OWNER = "ameer-sk1401"
+REPO_NAME  = "Automated-gym-splits-recommendations-project"

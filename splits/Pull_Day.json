@@ -1,0 +1,52 @@
+{
+  "title": "Pull Day",
+  "target_muscles": [
+    "Back",
+    "Biceps",
+    "Rear Delts"
+  ],
+  "exercises": [
+    {
+      "id": "pull_ups",
+      "name": "Pull Ups",
+      "sets": 4,
+      "reps": "6-8 (weighted if possible)"
+    },
+    {
+      "id": "lat_pull_down_variations",
+      "name": "Lat Pull Down (Different Grips Each Set)",
+      "sets": 3,
+      "reps": "8-10"
+    },
+    {
+      "id": "rowing",
+      "name": "Chest Supported Row or Barbell Row",
+      "sets": 4,
+      "reps": "6-8"
+    },
+    {
+      "id": "back_extension",
+      "name": "Back Extensions",
+      "sets": 3,
+      "reps": "12-15"
+    },
+    {
+      "id": "hammer_curls",
+      "name": "Hammer Curls",
+      "sets": 3,
+      "reps": "10-12"
+    },
+    {
+      "id": "bicep_curls",
+      "name": "Standing Bicep Curls",
+      "sets": 3,
+      "reps": "10-12"
+    },
+    {
+      "id": "lying_curls",
+      "name": "Incline/Lying Dumbbell Curls",
+      "sets": 2,
+      "reps": "12-15"
+    }
+  ]
+}

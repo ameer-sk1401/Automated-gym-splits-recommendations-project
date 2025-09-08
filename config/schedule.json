@@ -1,0 +1,7 @@
+{
+  "Monday": "push.json",
+  "Tuesday": "pull.json",
+  "Wednesday": "legs.json",
+  "Thursday": "push.json",
+  "Friday": "pull.json"
+}

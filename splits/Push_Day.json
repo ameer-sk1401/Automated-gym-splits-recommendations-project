@@ -1,0 +1,58 @@
+{
+  "title": "Push Day",
+  "target_muscles": [
+    "Chest",
+    "Triceps",
+    "Shoulders"
+  ],
+  "exercises": [
+    {
+      "id": "incline_bench_press",
+      "name": "Incline Bench Press",
+      "sets": 4,
+      "reps": "6-8"
+    },
+    {
+      "id": "bench_press",
+      "name": "Bench Press",
+      "sets": 4,
+      "reps": "5-7"
+    },
+    {
+      "id": "pec_fly",
+      "name": "Pec or Cable Flyes",
+      "sets": 3,
+      "reps": "10-12"
+    },
+    {
+      "id": "overhead_press",
+      "name": "Overhead Press",
+      "sets": 4,
+      "reps": "6-8"
+    },
+    {
+      "id": "lateral_raises",
+      "name": "Lateral Raises",
+      "sets": 3,
+      "reps": "12-15"
+    },
+    {
+      "id": "overhead_cable_extension",
+      "name": "Overhead Cable Extension",
+      "sets": 3,
+      "reps": "10-12"
+    },
+    {
+      "id": "rope_pull_down",
+      "name": "Single Arm Rope Pull Down",
+      "sets": 3,
+      "reps": "10-12"
+    },
+    {
+      "id": "tricep_extension",
+      "name": "Tricep Extension",
+      "sets": 3,
+      "reps": "12-15"
+    }
+  ]
+}

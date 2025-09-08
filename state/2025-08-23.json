@@ -1,0 +1,35 @@
+{
+  "date": "2025-08-23",
+  "completions": {
+    "u1": {
+      "lunges": true,
+      "ALL": true
+    },
+    "Ameer": {
+      "ALL": true
+    },
+    "Manohar": {
+      "squat": true,
+      "ALL": true
+    },
+    "Pradeep": {
+      "ALL": true
+    }
+  },
+  "timestamps": {
+    "u1": {
+      "lunges": "2025-08-23T04:37:34.420Z",
+      "ALL": "2025-08-23T04:37:42.875Z"
+    },
+    "Ameer": {
+      "ALL": "2025-08-23T05:17:52.771Z"
+    },
+    "Manohar": {
+      "squat": "2025-08-23T05:18:59.623Z",
+      "ALL": "2025-08-23T05:19:08.822Z"
+    },
+    "Pradeep": {
+      "ALL": "2025-08-23T05:19:22.428Z"
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "title": "Leg + Abs Day",
+  "target_muscles": [
+    "Quads",
+    "Hamstrings",
+    "Glutes",
+    "Calves",
+    "Abs",
+    "Traps/Shoulders (Accessory)"
+  ],
+  "exercises": [
+    {
+      "id": "squats",
+      "name": "Barbell Back Squat",
+      "sets": 5,
+      "reps": "8-10"
+    },
+    {
+      "id": "leg_press",
+      "name": "Leg Press",
+      "sets": 4,
+      "reps": "8-10"
+    },
+    {
+      "id": "leg_extension",
+      "name": "Leg Extension",
+      "sets": 3,
+      "reps": "8-10"
+    },
+    {
+      "id": "calf_raises",
+      "name": "Standing Calf Raises",
+      "sets": 3,
+      "reps": "15-20"
+    },
+    {
+      "id": "hip_adductors",
+      "name": "Hip Abd/Adductors",
+      "sets": 3,
+      "reps": "10-12"
+    },
+    {
+      "id": "military_press_or_shrugs",
+      "name": "Military Press or Dumbbell Shrugs",
+      "sets": 3,
+      "reps": "8-10"
+    },
+    {
+      "id": "hanging_leg_raise",
+      "name": "Hanging Leg Raises",
+      "sets": 3,
+      "reps": "12-15"
+    },
+    {
+      "id": "crunches",
+      "name": "Crunches",
+      "sets": 3,
+      "reps": "18-25"
+    }
+  ]
+}

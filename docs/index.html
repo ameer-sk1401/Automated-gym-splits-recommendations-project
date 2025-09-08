@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>Gym Splits – Progress</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    margin: 24px;
+  }
+  h1 {
+    margin: 0 0 16px;
+    font-size: 22px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 920px;
+  }
+  th,
+  td {
+    border: 1px solid #e5e7eb;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 14px;
+  }
+  th {
+    background: #f9fafb;
+  }
+  .muted {
+    color: #6b7280;
+    font-size: 12px;
+  }
+  .chip {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #111827;
+    color: #fff;
+    font-size: 12px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    max-width: 920px;
+  }
+  .card {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+  }
+</style>
+<h1>Gym Splits – Progress</h1>
+<p class="muted">
+  This dashboard reads daily JSON snapshots from <code>/state/</code> in the
+  repo.
+</p>
+
+<div class="grid">
+  <div class="card">
+    <h3>Per-user completion (last 28 days)</h3>
+    <table id="by-user">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Days sent</th>
+          <th>Days completed ≥1</th>
+          <th>Rate</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Per-exercise completion (last 28 days)</h3>
+    <table id="by-ex">
+      <thead>
+        <tr>
+          <th>Exercise</th>
+          <th>Times completed</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  (async function () {
+    // EDIT: set your repo owner/name and branch
+    const owner = "ameer-sk1401";
+    const repo = "Automated-gym-splits-recommendations-project";
+    const branch = "main"; // if you changed default, update this
+
+    // List files under /state/ using GitHub's contents API (public repos only)
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/state?ref=${branch}`
+    );
+    const files = (res.ok ? await res.json() : []).filter((x) =>
+      x.name.endsWith(".json")
+    );
+
+    // Fetch last 28 days of state files (sorted)
+    files.sort((a, b) => a.name.localeCompare(b.name));
+    const cutoff = new Date(Date.now() - 28 * 24 * 3600 * 1000);
+    const recent = files.filter((f) => {
+      const d = new Date(f.name.replace(".json", ""));
+      return !isNaN(d) && d >= cutoff;
+    });
+
+    const days = [];
+    const states = [];
+    for (const f of recent) {
+      const r = await fetch(f.download_url);
+      if (!r.ok) continue;
+      const j = await r.json();
+      days.push(j.date);
+      states.push(j);
+    }
+
+    const byUser = {};
+    const byEx = {};
+    for (const s of states) {
+      const date = s.date;
+      for (const uid of Object.keys(s.completions || {})) {
+        const exmap = s.completions[uid] || {};
+        const completedAny = Object.values(exmap).some(Boolean);
+        if (!byUser[uid]) byUser[uid] = { sent: 0, done: 0 };
+        byUser[uid].sent += 1;
+        if (completedAny) byUser[uid].done += 1;
+
+        for (const [ex, val] of Object.entries(exmap)) {
+          if (!val) continue;
+          const key = ex;
+          byEx[key] = (byEx[key] || 0) + 1;
+        }
+      }
+    }
+
+    // Render per-user
+    const tbodyU = document.querySelector("#by-user tbody");
+    tbodyU.innerHTML =
+      Object.entries(byUser)
+        .map(([uid, v]) => {
+          const rate = v.sent ? Math.round((v.done / v.sent) * 100) : 0;
+          return `<tr><td>${uid}</td><td>${v.sent}</td><td>${v.done}</td><td><span class="chip">${rate}%</span></td></tr>`;
+        })
+        .join("") || `<tr><td colspan="4" class="muted">No data yet.</td></tr>`;
+
+    // Render per-exercise
+    const tbodyE = document.querySelector("#by-ex tbody");
+    tbodyE.innerHTML =
+      Object.entries(byEx)
+        .sort((a, b) => b[1] - a[1])
+        .map(([ex, count]) => `<tr><td>${ex}</td><td>${count}</td></tr>`)
+        .join("") || `<tr><td colspan="2" class="muted">No data yet.</td></tr>`;
+  })();
+</script>

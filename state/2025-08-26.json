@@ -1,0 +1,31 @@
+{
+  "date": "2025-08-26",
+  "completions": {
+    "Charan": {
+      "pull_ups": true,
+      "lat_pull_down_variations": true,
+      "rowing": true,
+      "back_extension": true,
+      "hammer_curls": true,
+      "bicep_curls": true,
+      "ALL": true
+    },
+    "Manohar": {
+      "pull_ups": true
+    }
+  },
+  "timestamps": {
+    "Charan": {
+      "pull_ups": "2025-08-27T02:31:46.586Z",
+      "lat_pull_down_variations": "2025-08-27T02:31:58.165Z",
+      "rowing": "2025-08-27T02:32:02.548Z",
+      "back_extension": "2025-08-27T02:32:13.978Z",
+      "hammer_curls": "2025-08-27T02:32:19.844Z",
+      "bicep_curls": "2025-08-27T02:32:31.409Z",
+      "ALL": "2025-08-27T02:33:15.337Z"
+    },
+    "Manohar": {
+      "pull_ups": "2025-08-27T02:37:08.291Z"
+    }
+  }
+}

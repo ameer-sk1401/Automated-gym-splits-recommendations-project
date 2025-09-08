@@ -1,0 +1,40 @@
+{
+  "title": "Focus Day",
+  "target_muscles": [
+    "Weak Point Training",
+    "Core",
+    "Conditioning"
+  ],
+  "exercises": [
+    {
+      "id": "face_pulls",
+      "name": "Face Pulls",
+      "sets": 3,
+      "reps": "12-15"
+    },
+    {
+      "id": "rear_delt_fly",
+      "name": "Rear Delt Fly",
+      "sets": 3,
+      "reps": "12-15"
+    },
+    {
+      "id": "farmers_carry",
+      "name": "Farmer\u2019s Carry",
+      "sets": 4,
+      "reps": "40m walk"
+    },
+    {
+      "id": "ab_rollouts",
+      "name": "Ab Rollouts",
+      "sets": 3,
+      "reps": "10-12"
+    },
+    {
+      "id": "cardio",
+      "name": "HIIT or Conditioning Work",
+      "sets": 1,
+      "reps": "12-15 mins"
+    }
+  ]
+}

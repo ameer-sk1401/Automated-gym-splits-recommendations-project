@@ -1,0 +1,16 @@
+{
+  "date": "2025-08-22",
+  "user": "u1",
+  "completed": [
+    "deadlift",
+    "barbell_row",
+    "pullups",
+    "ALL"
+  ],
+  "timestamps": {
+    "deadlift": "2025-08-23T01:26:09.365Z",
+    "barbell_row": "2025-08-23T01:34:58.184Z",
+    "pullups": "2025-08-23T01:26:40.218Z",
+    "ALL": "2025-08-23T01:27:00.086Z"
+  }
+}

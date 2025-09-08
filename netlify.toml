@@ -1,0 +1,30 @@
+# netlify.toml
+[functions]
+  node_bundler = "esbuild"   # modern bundling
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/submit"
+  to = "/.netlify/functions/submit"
+  status = 200
+  force = true
+
+
+[[redirects]]
+  from = "/activity"
+  to = "/.netlify/functions/activity"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/customize"
+  to = "/.netlify/functions/customize"
+  status = 200
+  force = true
+
+
+[[redirects]]
+  from = "/delete"
+  to = "/.netlify/functions/delete_activity"
+  status = 200
+  force = true

@@ -1,0 +1,29 @@
+{
+  "date": "2025-08-22",
+  "completions": {
+    "u1": {
+      "deadlift": true,
+      "barbell_row": true,
+      "pullups": true,
+      "ALL": true
+    },
+    "u3": {
+      "deadlift": true,
+      "barbell_row": true,
+      "ALL": true
+    }
+  },
+  "timestamps": {
+    "u1": {
+      "deadlift": "2025-08-23T01:26:09.365Z",
+      "barbell_row": "2025-08-23T01:34:58.184Z",
+      "pullups": "2025-08-23T01:26:40.218Z",
+      "ALL": "2025-08-23T01:27:00.086Z"
+    },
+    "u3": {
+      "deadlift": "2025-08-23T01:33:42.052Z",
+      "barbell_row": "2025-08-23T01:29:34.564Z",
+      "ALL": "2025-08-23T01:29:44.764Z"
+    }
+  }
+}
