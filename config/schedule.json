@@ -1,7 +1,9 @@
 {
-  "Monday": "push.json",
-  "Tuesday": "pull.json",
-  "Wednesday": "legs.json",
-  "Thursday": "push.json",
-  "Friday": "pull.json"
+  "Monday": "Push_Day.json",
+  "Tuesday": "Pull_Day.json",
+  "Wednesday": "Leg_plus_Abs_Day.json",
+  "Thursday": null,
+  "Friday": "Full_Body_Power_Day.json",
+  "Saturday": "Focus_Day.json",
+  "Sunday": null
 }

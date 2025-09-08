@@ -34,7 +34,7 @@ FROM_EMAIL    = os.environ.get("FROM_EMAIL", SMTP_USERNAME or "no-reply@example.
 CONFIG          = BASE / "config"
 RECIPIENTS_FN   = CONFIG / "recipients.json"
 SPLITS_DIR      = BASE / "splits"                 # default rotation split JSONs
-WORKOUT_SPLITS  = BASE / "workout_splits"         # (kept for backward-compat; no longer used)
+WORKOUT_SPLITS  = BASE / "workout_splits"         # (kept for backward-compat; not used here)
 SCHEDULES_DIR   = BASE / "schedules"              # per-user rotation state: schedules/<username>.json
 HISTORY_ROOT    = BASE / "User History"           # activity store: User History/<u>/<YYYY-MM>/<YYYY-MM-DD>.json
 OUT_DIR         = BASE / ".out"                   # optional local preview output
@@ -172,15 +172,59 @@ def load_custom_plan_for_today(username: str, today_iso: str):
         "exercises": plan.get("exercises", []),
     }
 
+# --------- strict weekday schedule override ---------
+
+def pick_scheduled_split_or_rest(today_iso: str):
+    """
+    Return (mode, payload)
+      mode='split' -> payload is a split dict
+      mode='rest'  -> payload is {title, message}
+      mode=None    -> schedule.json missing -> let caller fall back
+    Treat null/""/'rest' (any case) as Rest day.
+    """
+    sched_fn = CONFIG / "schedule.json"
+    if not sched_fn.exists():
+        return None, None
+
+    sched = json.loads(sched_fn.read_text(encoding="utf-8"))
+    weekday = date.fromisoformat(today_iso).strftime("%A")  # 'Monday'
+    entry = sched.get(weekday)
+
+    if entry is None or (isinstance(entry, str) and entry.strip() == "") or (
+        isinstance(entry, str) and entry.strip().lower() == "rest"
+    ):
+        return "rest", {
+            "title": "Rest Day",
+            "message": "Today is a rest day. If you still want to train, use Customized Session to log a light or mobility workout."
+        }
+
+    if not isinstance(entry, str):
+        raise ValueError(f"schedule.json entry for {weekday} must be a filename or null; got {entry!r}")
+
+    split_path = SPLITS_DIR / entry
+    if not split_path.exists():
+        raise FileNotFoundError(f"Configured split '{entry}' not found in /splits for {weekday}.")
+    return "split", load_split_file(split_path)
+
+# --------- unified picker ---------
+
 def pick_split_for_today(username: str, today_iso: str) -> dict:
     """
     Preference:
-      1) If today's activity JSON has a custom_plan → use it for today only
+      0) If config/schedule.json exists => obey weekday:
+         - filename -> that exact split
+         - null/""/"rest" -> Rest Day email (no items)
+      1) Else, if today's activity JSON has custom_plan -> use it only today
       2) Else rotate defaults from /splits
     """
+    mode, payload = pick_scheduled_split_or_rest(today_iso)
+    if mode == "rest":
+        return {"__rest__": True, **payload}
+    if mode == "split":
+        return payload
+
     custom = load_custom_plan_for_today(username, today_iso)
     if custom and custom.get("exercises"):
-        # Still “touch” the schedule so last_action_date is today
         _ = pick_today_index(username, today_iso, total=len(DEFAULT_ROTATION_TITLES))
         return custom
 
@@ -190,7 +234,6 @@ def pick_split_for_today(username: str, today_iso: str) -> dict:
 # ============ email building ============
 
 def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
-    # Your loader takes NO args; it returns the contents of email_templates/daily.html
     tmpl = Template(load_email_template())
 
     user = recipient.get("username") or recipient["id"]
@@ -199,7 +242,28 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
     submit_base = f"{NETLIFY_BASE}/submit" if NETLIFY_BASE else SUBMIT_BASE_URL
     delete_func = f"{NETLIFY_BASE}/.netlify/functions/delete_activity" if NETLIFY_BASE else ""
 
-    # Per-exercise signed links to submit function
+    # ---- REST day email (no exercise buttons) ----
+    if split.get("__rest__"):
+        customized_session_link = (
+            build_signed_url(f"{NETLIFY_BASE}/customize", {"u": user, "ts": now_ts})
+            if NETLIFY_BASE else ""
+        )
+        return tmpl.render(
+            name=recipient.get("name", user),
+            title=split.get("title", "Rest Day"),
+            date=date_str,
+            items=[],                          # hide lists/buttons in template via condition
+            complete_all_link="",
+            my_activity_link=f"{NETLIFY_BASE}/activity?u={quote_plus(user)}" if NETLIFY_BASE else "",
+            skip_today_link="",
+            customized_session_link=customized_session_link,
+            delete_activity_link="",
+            delete_month_link="",
+            delete_all_link="",
+            rest_note=split.get("message", "Today is a rest day. If you want, you can log a custom session."),
+        )
+
+    # ---- Normal day ----
     items = []
     for ex in split.get("exercises", []):
         params = {"u": user, "d": date_str, "ex": ex.get("id", ""), "ts": now_ts}
@@ -210,22 +274,13 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
             "link": build_signed_url(submit_base, params),
         })
 
-    # Complete ALL
     complete_all_link = build_signed_url(submit_base, {"u": user, "d": date_str, "ex": "ALL", "ts": now_ts})
-
-    # Activity page (no signature required to view)
-    my_activity_link = f"{NETLIFY_BASE}/activity?u={quote_plus(user)}" if NETLIFY_BASE else ""
-
-    # Skip for today (signed)
-    skip_today_link = build_signed_url(submit_base, {"u": user, "d": date_str, "ex": "SKIP", "ts": now_ts})
-
-    # Customized Session page (signed u+ts)
+    my_activity_link   = f"{NETLIFY_BASE}/activity?u={quote_plus(user)}" if NETLIFY_BASE else ""
+    skip_today_link    = build_signed_url(submit_base, {"u": user, "d": date_str, "ex": "SKIP", "ts": now_ts})
     customized_session_link = (
         build_signed_url(f"{NETLIFY_BASE}/customize", {"u": user, "ts": now_ts})
         if NETLIFY_BASE else ""
     )
-
-    # Delete links (signed) -> confirmation UI in delete_activity function
     delete_activity_link = (
         build_signed_url(delete_func, {"u": user, "scope": "day", "d": date_str, "ts": now_ts})
         if delete_func else ""
@@ -252,6 +307,7 @@ def render_email_html(recipient: dict, split: dict, date_str: str) -> str:
         delete_activity_link=delete_activity_link,
         delete_month_link=delete_month_link,
         delete_all_link=delete_all_link,
+        rest_note=None,  # not a rest day
     )
 
 def build_message_html(recipient: dict, split: dict, date_str: str) -> MIMEMultipart:
@@ -290,7 +346,7 @@ def main():
         raise SystemExit("SIGNING_SECRET is required to sign links.")
 
     recipients = load_json(RECIPIENTS_FN)
-    date_str = today_local_iso()  # your util handles timezone
+    date_str = today_local_iso()  # utils respects TZ (set TZ=America/New_York in workflow)
 
     for r in recipients:
         user = r.get("username") or r["id"]

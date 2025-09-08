@@ -22,7 +22,15 @@ exports.handler = async (event) => {
           410,
           page("Expired", `<p>Link is older than 48 hours.</p>`)
         );
-      return html(200, formPage(u, ts, t)); // serve secure form
+
+      // Default date = today (UTC). If you prefer America/New_York, precompute it here.
+      const today = new Date();
+      const yyyy = today.getUTCFullYear();
+      const mm = String(today.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(today.getUTCDate()).padStart(2, "0");
+      const dflt = `${yyyy}-${mm}-${dd}`;
+
+      return html(200, formPage(u, ts, t, dflt)); // serve secure form
     }
 
     if (event.httpMethod === "POST") {
@@ -30,6 +38,7 @@ exports.handler = async (event) => {
       const u = (body.u || "").trim();
       const ts = (body.ts || "").trim();
       const t = (body.t || "").trim();
+      const d = (body.date || "").trim(); // YYYY-MM-DD (required)
 
       const check = verify({ u, ts }, t);
       if (!check.ok)
@@ -40,6 +49,14 @@ exports.handler = async (event) => {
           page("Expired", `<p>Link is older than 48 hours.</p>`)
         );
 
+      if (!u || !d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        return html(
+          400,
+          page("Invalid", `<p>Missing or invalid date (YYYY-MM-DD).</p>`)
+        );
+      }
+
+      // Build "days" structure from your existing dynamic form
       const days = buildDaysFromBody(body); // [{title, target_muscles, exercises:[{id,name,sets,reps}]}...]
       if (!days.length) {
         return html(
@@ -50,6 +67,13 @@ exports.handler = async (event) => {
           )
         );
       }
+
+      // We apply a *single-day* plan: use Day 1 of the form as the custom override for date d
+      const day = days[0];
+      const customPlan = {
+        title: day.title || "Custom Session",
+        exercises: Array.isArray(day.exercises) ? day.exercises : [],
+      };
 
       if (!OWNER || !REPO || !TOKEN) {
         return html(
@@ -62,23 +86,46 @@ exports.handler = async (event) => {
       }
       const gh = new GitHubRepo(OWNER, REPO, TOKEN);
 
-      // Save each day to workout_splits/<u>/<Title>.json (exact filenames)
-      let saved = 0;
-      for (const day of days) {
-        const filename = titleToFilename(day.title);
-        const path = `workout_splits/${u}/${filename}`;
-        const prev = await gh.get(path).catch(() => null);
-        if (prev && JSON.stringify(prev.json) === JSON.stringify(day)) continue;
-        await gh.put(path, day, prev?.sha);
-        saved++;
+      // Path: User History/<u>/<YYYY-MM>/<YYYY-MM-DD>.json
+      const yyyy = d.slice(0, 4);
+      const mm = d.slice(5, 7);
+      const path = `User History/${u}/${yyyy}-${mm}/${d}.json`;
+
+      // Load existing to preserve "completed" and merge
+      let existing = null,
+        sha = null;
+      try {
+        const prev = await gh.get(path);
+        sha = prev.sha;
+        existing = prev.json || {};
+      } catch (_) {
+        existing = {};
       }
+      // Merge: keep completed, set/replace custom_plan
+      const merged = {
+        ...existing,
+        custom_plan: customPlan,
+      };
+      if (
+        !Array.isArray(merged.completed) &&
+        typeof merged.completed !== "object"
+      ) {
+        merged.completed = [];
+      }
+
+      await gh.put(path, merged, sha);
 
       return html(
         200,
         page(
           "Saved ✅",
-          `<p>Saved ${saved} custom day file(s) for <b>${escape(u)}</b>.</p>
-         <p>Any day you didn't submit will fall back to the default split.</p>`
+          `<p>Saved a customized session for <b>${escape(u)}</b> on <b>${escape(
+            d
+          )}</b>.</p>
+         <p>It will be used for that day only; other days follow your default rotation.</p>
+         <p><a class="btn" href="/activity?u=${encodeURIComponent(
+           u
+         )}">📊 View Activity</a></p>`
         )
       );
     }
@@ -151,10 +198,6 @@ function parseForm(raw) {
   return out;
 }
 
-function titleToFilename(title) {
-  return title.replace(/ /g, "_").replace(/\+/g, "plus") + ".json";
-}
-
 function slug(s) {
   return String(s)
     .toLowerCase()
@@ -163,9 +206,9 @@ function slug(s) {
 }
 
 function buildDaysFromBody(b) {
-  // From the form: dayName[], bodyPart[], exerciseName[1][], sets[1][], reps[1][]
+  // From your form: dayName[], bodyPart[], exerciseName[1][], sets[1][], reps[1][]
   const names = b.dayName || [];
-  const parts = b.bodyPart || [];
+  const parts = b.bodyPart || {};
   const exNames = b.exerciseName || {};
   const sets = b.sets || {};
   const reps = b.reps || {};
@@ -192,19 +235,60 @@ function buildDaysFromBody(b) {
     }
     if (!ex.length) continue;
 
-    const muscles = parts[i]
-      ? String(parts[i])
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
-    out.push({
-      title,
-      target_muscles: muscles,
-      exercises: ex,
-    });
+    // optional: parse muscles if you still show this input
+    const muscles = Array.isArray(parts) ? parts[i] || "" : parts[dayIdx] || "";
+    const target = String(muscles || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    out.push({ title, target_muscles: target, exercises: ex });
   }
   return out;
+}
+
+/* ---------- GitHub API helper ---------- */
+class GitHubRepo {
+  constructor(owner, repo, token) {
+    this.base = `https://api.github.com/repos/${owner}/${repo}/contents`;
+    this.token = token;
+  }
+  async _fetch(url, opt = {}) {
+    return await fetch(url, {
+      ...opt,
+      headers: {
+        Authorization: `token ${this.token}`,
+        "User-Agent": "netlify-customize",
+        Accept: "application/vnd.github+json",
+        ...(opt.headers || {}),
+      },
+    });
+  }
+  async get(path) {
+    const r = await this._fetch(`${this.base}/${encodeURIComponent(path)}`);
+    if (r.status === 404) throw new Error("404");
+    if (!r.ok) throw new Error(String(r.status));
+    const j = await r.json();
+    const content = Buffer.from(j.content, "base64").toString("utf8");
+    return { sha: j.sha, json: JSON.parse(content) };
+  }
+  async put(path, obj, sha) {
+    const body = {
+      message: `save ${path}`,
+      content: Buffer.from(JSON.stringify(obj, null, 2)).toString("base64"),
+      ...(sha ? { sha } : {}),
+    };
+    const r = await this._fetch(`${this.base}/${encodeURIComponent(path)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => "");
+      throw new Error(`PUT ${path} -> ${r.status} ${txt}`);
+    }
+    return await r.json();
+  }
 }
 
 /* ----------------- HTML ----------------- */
@@ -219,27 +303,32 @@ function page(title, body) {
     .card{background:rgba(45,45,45,.95);backdrop-filter:blur(10px);border-radius:20px;padding:24px;border:1px solid rgba(255,255,255,.1);color:#eee}
     a.btn,button.btn{display:inline-block;padding:12px 24px;border-radius:25px;text-decoration:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#4A1458;font-weight:700;border:none;cursor:pointer}
     input,button{font:inherit}
-    input[type="text"],input[type="number"]{width:100%;padding:10px;border-radius:10px;border:1px solid #444;background:#2a2a2a;color:#eee}
+    input[type="text"],input[type="number"],input[type="date"]{width:100%;padding:10px;border-radius:10px;border:1px solid #444;background:#2a2a2a;color:#eee}
     .section{margin:12px 0;padding:12px;border:1px solid #444;border-radius:12px}
     label{color:#cfcfcf;font-size:14px}
   </style>
   <div class="container"><div class="card">${body}</div></div>`;
 }
 
-function formPage(u, ts, t) {
+function formPage(u, ts, t, defaultDate) {
   return page(
     "Create Workout Split",
     `
-    <h2 style="margin:0 0 8px">Create Workout Split</h2>
-    <p style="color:#bbb;margin:0 0 16px">Add one or more days. Any day you omit will use the default plan.</p>
+    <h2 style="margin:0 0 8px">Customized Session (One Day)</h2>
+    <p style="color:#bbb;margin:0 0 12px">This will override your default plan for a single date only.</p>
     <form method="POST" action="/.netlify/functions/customize" id="workoutSplitForm">
-      <input type="hidden" name="u" value="${escape(u)}" />
+      <input type="hidden" name="u"  value="${escape(u)}" />
       <input type="hidden" name="ts" value="${escape(ts)}" />
       <input type="hidden" name="t"  value="${escape(t)}" />
 
+      <div style="margin:8px 0">
+        <label>Date (YYYY-MM-DD)</label>
+        <input name="date" required value="${escape(defaultDate)}" />
+      </div>
+
       <div id="days"></div>
       <div style="margin:12px 0"><button type="button" class="btn" onclick="addDay()">+ Add Day</button></div>
-      <div style="margin-top:16px"><button class="btn" type="submit">💾 Save Workout Split</button></div>
+      <div style="margin-top:16px"><button class="btn" type="submit">💾 Save Custom Session</button></div>
     </form>
 
     <script>
@@ -255,11 +344,11 @@ function formPage(u, ts, t) {
             <button type="button" class="btn" style="padding:6px 12px" onclick="this.closest('.section').remove()">Remove Day</button>
           </div>
           <div style="margin-top:8px">
-            <label>Day Name (e.g., Push Day)</label>
-            <input name="dayName[]" placeholder="Push Day" required />
+            <label>Day Name / Title</label>
+            <input name="dayName[]" placeholder="e.g., Custom Push" required />
           </div>
           <div style="margin-top:8px">
-            <label>Body Part(s) (comma-separated)</label>
+            <label>Body Part(s) (comma-separated, optional)</label>
             <input name="bodyPart[]" placeholder="Chest, Triceps, Shoulders" />
           </div>
           <div class="exercises" style="margin-top:8px"></div>
@@ -309,48 +398,4 @@ function escape(s) {
         m
       ])
   );
-}
-
-/* ---------- GitHub API helper ---------- */
-class GitHubRepo {
-  constructor(owner, repo, token) {
-    this.base = `https://api.github.com/repos/${owner}/${repo}/contents`;
-    this.token = token;
-  }
-  async _fetch(url, opt = {}) {
-    return await fetch(url, {
-      ...opt,
-      headers: {
-        Authorization: `token ${this.token}`,
-        "User-Agent": "netlify-customize",
-        Accept: "application/vnd.github+json",
-        ...(opt.headers || {}),
-      },
-    });
-  }
-  async get(path) {
-    const r = await this._fetch(`${this.base}/${encodeURIComponent(path)}`);
-    if (r.status === 404) throw new Error("404");
-    if (!r.ok) throw new Error(String(r.status));
-    const j = await r.json();
-    const content = Buffer.from(j.content, "base64").toString("utf8");
-    return { sha: j.sha, json: JSON.parse(content) };
-  }
-  async put(path, obj, sha) {
-    const body = {
-      message: `save ${path}`,
-      content: Buffer.from(JSON.stringify(obj, null, 2)).toString("base64"),
-      ...(sha ? { sha } : {}),
-    };
-    const r = await this._fetch(`${this.base}/${encodeURIComponent(path)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!r.ok) {
-      const txt = await r.text().catch(() => "");
-      throw new Error(`PUT ${path} -> ${r.status} ${txt}`);
-    }
-    return await r.json();
-  }
 }

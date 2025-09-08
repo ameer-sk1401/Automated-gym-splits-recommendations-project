@@ -6,7 +6,11 @@ on:
 jobs:
   gym_split_reminder:
     runs-on: ubuntu-latest
+    env:
+      TZ: America/New_York
     steps:
+      - name: Show local time
+        run: date
       - name: Checkout repository
         uses: actions/checkout@v2
 
