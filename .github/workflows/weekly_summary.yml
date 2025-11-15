@@ -1,7 +1,7 @@
 name: Weekly Summary
 on:
-  schedule:
-    - cron: "0 12 * * 0" # Sundays 12:00 UTC (~8 AM US/Eastern)
+  #schedule:
+    #- cron: "0 12 * * 0" # Sundays 12:00 UTC (~8 AM US/Eastern)
   workflow_dispatch:
 
 permissions:
