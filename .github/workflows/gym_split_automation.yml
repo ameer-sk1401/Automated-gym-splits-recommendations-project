@@ -1,7 +1,7 @@
 name: GYM Split recommendation workflow
 on:
-  schedule:
-    - cron: "0 13 * * *" # Runs every day at 9 AM EST
+  #schedule:
+    #- cron: "0 13 * * *" # Runs every day at 9 AM EST
   workflow_dispatch:
 jobs:
   gym_split_reminder:
